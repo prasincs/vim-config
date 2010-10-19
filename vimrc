@@ -18,19 +18,6 @@ set ai sw=4
 set tags+=$HOME/.vim/tags/python.ctags
 map <silent><C-Left> <C-T>
 map <silent><C-Right> <C-]>
-" For python 
-autocmd BufEnter *.py set ai sw=4 ts=4 sta et fo=croql
-autocmd FileType python set omnifunc=pythoncomplete#Complete
-inoremap <Nul> <C-x><C-o>
-autocmd BufRead *.py set makeprg=python\ -c\ \"import\ py_compile,sys;\ sys.stderr=sys.stdout;\ py_compile.compile(r'%')\"
-autocmd BufRead *.py set efm=%C\ %.%#,%A\ \ File\ \"%f\"\\,\ line\ %l%.%#,%Z%[%^\ ]%\\@=%m
-"For running snippets of code
-python << EOL
-import vim
-def EvaluateCurrentRange():
-	eval(compile('\n'.join(vim.current.range),'','exec'),globals())
-EOL
-map <C-h> :py EvaluateCurrentRange()
 " enable mouse wherever
 set mouse=a
 :map <F2> :NERDTreeToggle<CR>
@@ -74,25 +61,6 @@ set softtabstop=2
 set shiftwidth=2
 set expandtab
 
-" Highlight trailing whitespace and lines longer than 80 columns.
-highlight LongLine ctermbg=DarkYellow guibg=DarkYellow
-highlight WhitespaceEOL ctermbg=DarkYellow guibg=DarkYellow
-if v:version >= 702
-  " Lines longer than 80 columns.
-  au BufWinEnter * let w:m0=matchadd('LongLine', '\%>80v.\+', -1)
-
-  " Whitespace at the end of a line. This little dance suppresses
-  " whitespace that has just been typed.
-  au BufWinEnter * let w:m1=matchadd('WhitespaceEOL', '\s\+$', -1)
-  au InsertEnter * call matchdelete(w:m1)
-  au InsertEnter * let w:m2=matchadd('WhitespaceEOL', '\s\+\%#\@<!$', -1)
-  au InsertLeave * call matchdelete(w:m2)
-  au InsertLeave * let w:m1=matchadd('WhitespaceEOL', '\s\+$', -1)
-else
-  au BufRead,BufNewFile * syntax match LongLine /\%>80v.\+/
-  au InsertEnter * syntax match WhitespaceEOL /\s\+\%#\@<!$/
-  au InsertLeave * syntax match WhitespaceEOL /\s\+$/
-endif
 
 " Enable filetype detection
 filetype on
