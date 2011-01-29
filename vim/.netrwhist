@@ -1,3 +1,6 @@
 let g:netrw_dirhistmax  =10
-let g:netrw_dirhist_cnt =1
+let g:netrw_dirhist_cnt =4
 let g:netrw_dirhist_1='/usr/lib/openoffice/share/config'
+let g:netrw_dirhist_2='/home/pgautam/llvm/llvm-2.7/lib/Target/M68K/AsmPrinter'
+let g:netrw_dirhist_3='/home/pgautam/llvm/llvm-2.7/lib/Target/M68K/TargetInfo'
+let g:netrw_dirhist_4='/home/pgautam/llvm/llvm-2.7/lib/Target/M68K'
