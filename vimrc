@@ -111,9 +111,37 @@ augroup filetype
   au! BufRead,BufNewFile *.td     set filetype=tablegen
 augroup END
 
+" Set color scheme
+colorscheme wombat
+
+function! ConditionalPairMap(open, close)
+  let line = getline('.')
+  let col = col('.')
+  if col < col('$') || stridx(line, a:close, col + 1) != -1
+    return a:open
+  else
+    return a:open . a:close . repeat("\<left>", len(a:close))
+  endif
+endf
+
+" Automatically adds the pairs
+inoremap <expr> ( ConditionalPairMap('(', ')')
+inoremap <expr> { ConditionalPairMap('{', '}')
+inoremap <expr> [ ConditionalPairMap('[', ']')
+
+
+"Clojure specific
+let vimclojure#ParenRainbow=1
+let vimclojure#HighlightBuiltins=1
+" For taglist to recognize clojure files but use lisp options
+let tlist_clojure_settings = 'lisp;f:function'
+
 " Additional vim features to optionally uncomment.
-"set showcmd
-"set showmatch
-"set showmode
-"set incsearch
-"set ruler
+set showcmd
+set showmatch
+set showmode
+set incsearch
+set ruler
+
+"Allow copy-pasting
+map <C-c> "+y
