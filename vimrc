@@ -112,7 +112,7 @@ augroup filetype
 augroup END
 
 " Set color scheme
-colorscheme wombat
+colorscheme ir_black
 
 function! ConditionalPairMap(open, close)
   let line = getline('.')
