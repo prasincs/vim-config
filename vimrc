@@ -112,7 +112,7 @@ augroup filetype
 augroup END
 
 " Set color scheme
-colorscheme ir_black
+colorscheme wombat
 
 function! ConditionalPairMap(open, close)
   let line = getline('.')
@@ -145,3 +145,6 @@ set ruler
 
 "Allow copy-pasting
 map <C-c> "+y
+
+" Enable pathogen
+call pathogen#infect()
