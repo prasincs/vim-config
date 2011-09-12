@@ -111,8 +111,6 @@ augroup filetype
   au! BufRead,BufNewFile *.td     set filetype=tablegen
 augroup END
 
-" Set color scheme
-colorscheme wombat
 
 function! ConditionalPairMap(open, close)
   let line = getline('.')
@@ -148,3 +146,8 @@ map <C-c> "+y
 
 " Enable pathogen
 call pathogen#infect()
+
+" Solarized color scheme
+syntax enable
+set background=dark
+colorscheme solarized
