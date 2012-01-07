@@ -128,12 +128,6 @@ inoremap <expr> { ConditionalPairMap('{', '}')
 inoremap <expr> [ ConditionalPairMap('[', ']')
 
 
-"Clojure specific
-let vimclojure#ParenRainbow=1
-let vimclojure#HighlightBuiltins=1
-" For taglist to recognize clojure files but use lisp options
-let tlist_clojure_settings = 'lisp;f:function'
-
 " Additional vim features to optionally uncomment.
 set showcmd
 set showmatch
