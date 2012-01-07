@@ -90,8 +90,8 @@ map <C-c> "+y
 " Enable pathogen
 "call pathogen#infect()
 call pathogen#runtime_append_all_bundles()
-
-" Solarized color scheme
+call pathogen#helptags()
+"Solarized color scheme
 syntax enable
 set background=dark
 colorscheme solarized
@@ -107,10 +107,10 @@ set foldlevel=99
 
 " Moving around windows
 
-map <c-j> <c-w>j
-map <c-k> <c-w>k
-map <c-l> <c-w>l
-map <c-h> <c-w>h
+"map <c-j> <c-w>j
+"map <c-k> <c-w>k
+"map <c-l> <c-w>l
+"map <c-h> <c-w>h
 
 " SuperTab plugin
 
