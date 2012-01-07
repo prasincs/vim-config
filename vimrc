@@ -15,44 +15,12 @@ set tags=~/.vim/stdtags,tags,.tags,../tags
 
 autocmd InsertLeave * if pumvisible() == 0|pclose|endif
 set ai sw=4
-set tags+=$HOME/.vim/tags/python.ctags
 map <silent><C-Left> <C-T>
 map <silent><C-Right> <C-]>
 " enable mouse wherever
 set mouse=a
-:map <F2> :NERDTreeToggle<CR>
-:map <C-p> :set paste<CR>
-" For Vim-LaTeX
-" REQUIRED. This makes vim invoke Latex-Suite when you open a tex file.
-"
-" " IMPORTANT: win32 users will need to have 'shellslash' set so that latex
-" " can be called correctly.
-" set shellslash
-"
-" " IMPORTANT: grep will sometimes skip displaying the file name if you
-" " search in a singe file. This will confuse Latex-Suite. Set your grep
-" " program to always generate a file-name.
-set grepprg=grep\ -nH\ $*
-"
 " " OPTIONAL: This enables automatic indentation as you type.
 filetype indent on
-"
-" " OPTIONAL: Starting with Vim 7, the filetype of empty .tex files defaults
-" to
-" " 'plaintex' instead of 'tex', which results in vim-latex not being loaded.
-" " The following changes the default filetype back to 'tex':
-let g:tex_flavor='latex'
-
-"" LLVM coding guidelines conformance for VIM
-" $Revision: 97273 $
-"
-" Maintainer: The LLVM Team, http://llvm.org
-" WARNING:    Read before you source in all these commands and macros!  Some
-"             of them may change VIM behavior that you depend on.
-"
-" You can run VIM with these settings without changing your current setup with:
-" $ vim -u /path/to/llvm/utils/vim/vimrc
-
 " It's VIM, not VI
 set nocompatible
 
@@ -65,13 +33,6 @@ set expandtab
 " Enable filetype detection
 filetype on
 
-" Optional
-" C/C++ programming helpers
-augroup csrc
-  au!
-  autocmd FileType *      set nocindent smartindent
-  autocmd FileType c,cpp  set cindent
-augroup END
 " Set a few indentation parameters. See the VIM help for cinoptions-values for
 " details.  These aren't absolute rules; they're just an approximation of
 " common style in LLVM source.
@@ -98,18 +59,6 @@ command! DeleteTrailingWs :%s/\s\+$//
 
 " Convert all tab characters to two spaces
 command! Untab :%s/\t/  /g
-
-" Enable syntax highlighting for LLVM files. To use, copy
-" utils/vim/llvm.vim to ~/.vim/syntax .
-augroup filetype
-  au! BufRead,BufNewFile *.ll     set filetype=llvm
-augroup END
-
-" Enable syntax highlighting for tablegen files. To use, copy
-" utils/vim/tablegen.vim to ~/.vim/syntax .
-augroup filetype
-  au! BufRead,BufNewFile *.td     set filetype=tablegen
-augroup END
 
 
 function! ConditionalPairMap(open, close)
@@ -145,3 +94,7 @@ call pathogen#infect()
 syntax enable
 set background=dark
 colorscheme solarized
+
+" NERDTree
+:map <F2> :NERDTreeToggle<CR>
+:map <C-p> :set paste<CR>
