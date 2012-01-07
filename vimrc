@@ -257,3 +257,6 @@ endif
 nmap <silent> <Leader>sc :execute "ScreenShell java -cp \"" . classpath . sep . vimclojureRoot . "/lib/*" . "\" vimclojure.nailgun.NGServer 127.0.0.1" <cr>
 " Start a generic Clojure repl (uses screen.vim)
 nmap <silent> <Leader>sC :execute "ScreenShell java -cp \"" . classpath . "\" clojure.main"
+
+
+
