@@ -9,3 +9,11 @@ Usage
 
 After cloning the repository at a location, say, `$HOME/vim-config`, you want to make symbolic links of vim to `$HOME/.vim` and vimrc to `$HOME/.vimrc`
 and then run  `git submodule update --init --recursive`
+
+
+Installing Command-T
+====
+
+`cd ~/.vim/bundle/command-t`
+
+`rake make`
