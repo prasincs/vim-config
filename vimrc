@@ -88,7 +88,8 @@ set ruler
 map <C-c> "+y
 
 " Enable pathogen
-call pathogen#infect()
+"call pathogen#infect()
+call pathogen#runtime_append_all_bundles()
 
 " Solarized color scheme
 syntax enable
@@ -96,5 +97,17 @@ set background=dark
 colorscheme solarized
 
 " NERDTree
-:map <F2> :NERDTreeToggle<CR>
-:map <C-p> :set paste<CR>
+map <F2> :NERDTreeToggle<CR>
+"Enable Ctrl+P to paste
+map <C-p> :set paste<CR>
+
+" Folds
+set foldmethod=indent
+set foldlevel=99
+
+" Moving around windows
+
+map <c-j> <c-w>j
+map <c-k> <c-w>k
+map <c-l> <c-w>l
+map <c-h> <c-w>h
