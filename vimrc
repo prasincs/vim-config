@@ -240,7 +240,6 @@ let classpath = join(
    \],
    \ sep)
 
-echo vimfiles
 " Settings for VimClojure
 let vimclojureRoot = vimfiles."/bundle/VimClojure"
 let vimclojure#HighlightBuiltins=1

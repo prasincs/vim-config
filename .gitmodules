@@ -48,3 +48,6 @@
 [submodule "vim/bundle/VimClojure"]
 	path = vim/bundle/VimClojure
 	url = https://github.com/vim-scripts/VimClojure.git
+[submodule "vim/bundle/screen"]
+	path = vim/bundle/screen
+	url = https://github.com/ervandew/screen.git
