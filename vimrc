@@ -271,14 +271,12 @@ if has("gui_running")
     "Invisible character colors
     highlight NonText guifg=#4a4a59
     highlight SpecialKey guifg=#4a4a59
-else
-    colorscheme darkblue        "Default VIM colorscheme which works in terminals
 endif
 
 
 if has("gui_macvim") "Use Experimental Renderer option must be enabled for transparencY
     "set transparency=15
-    set guifont=Monaco:h10
+    set guifont=Monaco:h12
     map <SwipeLeft> :bprev<CR>
     map <SwipeRight> :bnext<CR>
 endif
