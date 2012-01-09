@@ -258,5 +258,31 @@ nmap <silent> <Leader>sc :execute "ScreenShell java -cp \"" . classpath . sep . 
 " Start a generic Clojure repl (uses screen.vim)
 nmap <silent> <Leader>sC :execute "ScreenShell java -cp \"" . classpath . "\" clojure.main"
 
+nmap <F8> :TagbarToggle<CR>
+
+if has("gui_running")
+    set cursorline                  "Highlight background of current line
+    autocmd VimEnter * NERDTree     "run nerdtree
+    "autocmd VimEnter * TagbarOpen
+
+    " Show tabs and newline characters with ,s
+    nmap <Leader>s :set list!<CR>
+    set listchars=tab:▸\ ,eol:¬
+    "Invisible character colors
+    highlight NonText guifg=#4a4a59
+    highlight SpecialKey guifg=#4a4a59
+else
+    colorscheme darkblue        "Default VIM colorscheme which works in terminals
+endif
 
 
+if has("gui_macvim") "Use Experimental Renderer option must be enabled for transparencY
+    "set transparency=15
+    set guifont=Monaco:h10
+    map <SwipeLeft> :bprev<CR>
+    map <SwipeRight> :bnext<CR>
+endif
+
+if filereadable($HOME.'/.vimrc_local')
+    source $HOME/.vimrc_local
+endif

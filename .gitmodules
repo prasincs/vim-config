@@ -51,3 +51,9 @@
 [submodule "vim/bundle/screen"]
 	path = vim/bundle/screen
 	url = https://github.com/ervandew/screen.git
+[submodule "vim/bundle/phpcomplete"]
+	path = vim/bundle/phpcomplete
+	url = https://github.com/shawncplus/phpcomplete.vim
+[submodule "vim/bundle/tagbar"]
+	path = vim/bundle/tagbar
+	url = https://github.com/majutsushi/tagbar.git
