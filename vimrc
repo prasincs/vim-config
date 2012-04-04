@@ -284,3 +284,6 @@ endif
 if filereadable($HOME.'/.vimrc_local')
     source $HOME/.vimrc_local
 endif
+
+au BufNewFile,BufRead *.jade set filetype=jade
+au BufNewFile,BufRead *.styl set filetype=stylus
