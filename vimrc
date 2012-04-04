@@ -184,8 +184,8 @@ set ruler
 map <C-c> "+y
 
 " Enable pathogen
-"call pathogen#infect()
-call pathogen#runtime_append_all_bundles()
+call pathogen#infect()
+" call pathogen#runtime_append_all_bundles()
 call pathogen#helptags()
 "Solarized color scheme
 syntax enable
