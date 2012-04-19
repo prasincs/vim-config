@@ -1,5 +1,4 @@
 :let mapleader=","
-syntax on
 
 :map <M-Esc>[62~ <MouseDown> 
 :map! <M-Esc>[62~ <MouseDown> 
@@ -81,8 +80,11 @@ call pathogen#runtime_append_all_bundles()
 call pathogen#helptags()
 "Solarized color scheme
 syntax enable
-set background=dark
+let g:solarized_termcolors=16
 colorscheme solarized
+hi Normal ctermbg=NONE
+set background=dark
+
 
 " NERDTree
 map <F2> :NERDTreeToggle<CR>
@@ -107,7 +109,6 @@ let g:SuperTabDefaultCompletionType = "context"
 
 set completeopt=menuone,longest,preview
 
-syntax on
 
 :map <M-Esc>[62~ <MouseDown> 
 :map! <M-Esc>[62~ <MouseDown> 
@@ -117,38 +118,11 @@ syntax on
 :map! <M-Esc>[64~ <S-MouseDown> 
 :map <M-Esc>[65~ <S-MouseUp> 
 :map! <M-Esc>[65~ <S-MouseUp>
-filetype plugin on
 
 "set tags=~/.vim/stdtags,tags,.tags,../tags
 
 autocmd InsertLeave * if pumvisible() == 0|pclose|endif
-set ai sw=4
-" enable mouse wherever
-set mouse=a
-" " OPTIONAL: This enables automatic indentation as you type.
-filetype indent on
-" It's VIM, not VI
-set nocompatible
 
-" A tab produces a 2-space indentation
-set softtabstop=2
-set shiftwidth=2
-set expandtab
-
-
-" Enable filetype detection
-filetype on
-
-" Add and delete spaces in increments of `shiftwidth' for tabs
-set smarttab
-
-" Highlight syntax in programming languages
-syntax on
-
-" In Makefiles, don't expand tabs to spaces, since we need the actual tabs
-autocmd FileType make set noexpandtab
-
-" Useful macros for cleaning up code to conform to LLVM coding guidelines
 
 " Delete trailing whitespace and tabs at the end of each line
 command! DeleteTrailingWs :%s/\s\+$//
@@ -187,10 +161,6 @@ map <C-c> "+y
 call pathogen#infect()
 " call pathogen#runtime_append_all_bundles()
 call pathogen#helptags()
-"Solarized color scheme
-syntax enable
-set background=dark
-colorscheme solarized
 
 " NERDTree
 map <F2> :NERDTreeToggle<CR>
