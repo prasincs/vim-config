@@ -287,3 +287,6 @@ endif
 
 au BufNewFile,BufRead *.jade set filetype=jade
 au BufNewFile,BufRead *.styl set filetype=stylus
+" Syntax highlighting for clojurescript files
+autocmd BufRead,BufNewFile *.cljs setlocal filetype=clojure
+au BufRead,BufNewFile *.pegjs setfiletype pegjs

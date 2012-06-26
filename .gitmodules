@@ -63,3 +63,9 @@
 [submodule "vim/bundle/vim-stylus"]
 	path = vim/bundle/vim-stylus
 	url = https://github.com/wavded/vim-stylus.git
+[submodule "vim/bundle/peg-vim"]
+	path = vim/bundle/peg-vim
+	url = git://github.com/gf3/peg.vim.git
+[submodule "vim/bundle/pegjs-vim"]
+	path = vim/bundle/pegjs-vim
+	url = git://github.com/vim-scripts/PEGJS.vim.git
