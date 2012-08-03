@@ -13,9 +13,9 @@ if has("gui_macvim")
   set stal=2 " turn on tabs by default
 
 elseif has("gui_gtk2")
-
-  set guifont=Monaco
-  set guioptions-=T  " remove toolbar
+  colorscheme solarized
+  set background=dark
+  
 
 elseif has("x11")
 elseif has("gui_win32")
