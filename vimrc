@@ -80,7 +80,17 @@ call pathogen#runtime_append_all_bundles()
 call pathogen#helptags()
 "Solarized color scheme
 syntax enable
-let g:solarized_termcolors=16
+if !has('gui_running')
+    " Compatibility for Terminal
+    let g:solarized_termtrans=1
+
+    if (&t_Co >= 256 || $TERM == 'xterm-256color')
+        " Do nothing, it handles itself.
+    else
+        " Make Solarized use 16 colors for Terminal support
+        let g:solarized_termcolors=16
+    endif
+endif
 colorscheme solarized
 hi Normal ctermbg=NONE
 set background=dark
