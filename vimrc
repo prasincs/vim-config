@@ -58,12 +58,6 @@ function! ConditionalPairMap(open, close)
   endif
 endf
 
-" Automatically adds the pairs
-inoremap <expr> ( ConditionalPairMap('(', ')')
-inoremap <expr> { ConditionalPairMap('{', '}')
-inoremap <expr> [ ConditionalPairMap('[', ']')
-
-
 " Additional vim features to optionally uncomment.
 set showcmd
 set showmatch
@@ -141,21 +135,6 @@ command! DeleteTrailingWs :%s/\s\+$//
 command! Untab :%s/\t/  /g
 
 
-function! ConditionalPairMap(open, close)
-  let line = getline('.')
-  let col = col('.')
-  if col < col('$') || stridx(line, a:close, col + 1) != -1
-    return a:open
-  else
-    return a:open . a:close . repeat("\<left>", len(a:close))
-  endif
-endf
-
-" Automatically adds the pairs
-inoremap <expr> ( ConditionalPairMap('(', ')')
-inoremap <expr> { ConditionalPairMap('{', '}')
-inoremap <expr> [ ConditionalPairMap('[', ']')
-
 
 " Additional vim features to optionally uncomment.
 set showcmd
@@ -188,14 +167,6 @@ map <c-k> <c-w>k
 map <c-l> <c-w>l
 map <c-h> <c-w>h
 
-" SuperTab plugin
-
-au FileType python set omnifunc=pythoncomplete#Complete
-let g:SuperTabDefaultCompletionType = "context"
-
-set completeopt=menuone,longest,preview
-
-
 " Let's remember some things, like where the .vim folder is.
 if has("win32") || has("win64")
     let windows=1
@@ -208,35 +179,6 @@ else
 endif
 
 
-
-let classpath = join(
-   \[".",
-   \ "src", "src/main/clojure", "src/main/resources",
-   \ "test", "src/test/clojure", "src/test/resources",
-   \ "classes", "target/classes",
-   \ "lib/*", "lib/dev/*",
-   \ "bin",
-   \ vimfiles."/lib/*"
-   \],
-   \ sep)
-
-" Settings for VimClojure
-let vimclojureRoot = vimfiles."/bundle/VimClojure"
-let vimclojure#HighlightBuiltins=1
-let vimclojure#HighlightContrib=1
-let vimclojure#DynamicHighlighting=1
-let vimclojure#ParenRainbow=1
-let vimclojure#WantNailgun = 1
-let vimclojure#NailgunClient = vimclojureRoot."/lib/nailgun/ng"
-if windows
-    " In stupid windows, no forward slashes, and tack on .exe
-    let vimclojure#NailgunClient = substitute(vimclojure#NailgunClient, "/", "\\", "g") . ".exe"
-endif
-
-" Start vimclojure nailgun server (uses screen.vim to manage lifetime)
-nmap <silent> <Leader>sc :execute "ScreenShell java -cp \"" . classpath . sep . vimclojureRoot . "/lib/*" . "\" vimclojure.nailgun.NGServer 127.0.0.1" <cr>
-" Start a generic Clojure repl (uses screen.vim)
-nmap <silent> <Leader>sC :execute "ScreenShell java -cp \"" . classpath . "\" clojure.main"
 
 nmap <F8> :TagbarToggle<CR>
 
@@ -265,8 +207,8 @@ if filereadable($HOME.'/.vimrc_local')
     source $HOME/.vimrc_local
 endif
 
-au BufNewFile,BufRead *.jade set filetype=jade
-au BufNewFile,BufRead *.styl set filetype=stylus
 " Syntax highlighting for clojurescript files
 autocmd BufRead,BufNewFile *.cljs setlocal filetype=clojure
-au BufRead,BufNewFile *.pegjs setfiletype pegjs
+
+map <leader>vimrc :tabe ~/.vim/.vimrc<cr>
+autocmd bufwritepost .vimrc source $MYVIMRC

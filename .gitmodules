@@ -13,3 +13,42 @@
 [submodule "vim/bundle/phpcomplete"]
   path = vim/bundle/phpcomplete
   url = https://github.com/shawncplus/phpcomplete.vim
+[submodule "vim/bundle/clojure-static"]
+	path = vim/bundle/clojure-static
+	url = git@github.com:guns/vim-clojure-static.git
+[submodule "vim/bundle/rainbow_parentheses"]
+	path = vim/bundle/rainbow_parentheses
+	url = git@github.com:kien/rainbow_parentheses.vim.git
+[submodule "vim/bundle/vim-classpath"]
+	path = vim/bundle/vim-classpath
+	url = git@github.com:tpope/vim-classpath.git
+[submodule "vim/bundle/vim-paredit"]
+	path = vim/bundle/vim-paredit
+	url = git@github.com:vim-scripts/paredit.vim.git
+[submodule "vim/bundle/supertab"]
+	path = vim/bundle/supertab
+	url = git@github.com:ervandew/supertab.git
+[submodule "vim/bundle/nerdcommenter"]
+	path = vim/bundle/nerdcommenter
+	url = git@github.com:scrooloose/nerdcommenter.git
+[submodule "vim/bundle/syntastic"]
+	path = vim/bundle/syntastic
+	url = git@github.com:scrooloose/syntastic.git
+[submodule "bundle/supertab"]
+	path = bundle/supertab
+	url = git@github.com:ervandew/supertab.git
+[submodule "bundle/sensible"]
+	path = bundle/sensible
+	url = git@github.com:tpope/vim-sensible.git
+[submodule "vim/bundle/fireplace"]
+	path = vim/bundle/fireplace
+	url = git@github.com:tpope/vim-fireplace.git
+[submodule "vim/bundle/vcscommand"]
+	path = vim/bundle/vcscommand
+	url = git@github.com:vim-scripts/vcscommand.vim.git
+[submodule "vim/bundle/tagbar"]
+	path = vim/bundle/tagbar
+	url = git@github.com:majutsushi/tagbar
+[submodule "vim/bundle/coffeescript"]
+	path = vim/bundle/coffeescript
+	url = git@github.com:kchmck/vim-coffee-script.git

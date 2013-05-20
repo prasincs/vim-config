@@ -1,0 +1,10 @@
+let g:netrw_dirhistmax  =10
+let g:netrw_dirhist_cnt =8
+let g:netrw_dirhist_1='/Users/gautamp/scorekeeping/scripts'
+let g:netrw_dirhist_2='/Users/gautamp/innovation/RadCodes/ar_bottomline'
+let g:netrw_dirhist_3='/Users/gautamp/Dropbox/Public'
+let g:netrw_dirhist_4='/Users/gautamp/innovation/sail-demo/app'
+let g:netrw_dirhist_5='/Users/gautamp/innovation/sail-demo/node_modules'
+let g:netrw_dirhist_6='/Users/gautamp/innovation/EPGREST'
+let g:netrw_dirhist_7='/Users/gautamp/innovation/alps-sdr-tools/mlb-import-csv'
+let g:netrw_dirhist_8='/Users/gautamp/innovation/sail-demo'
