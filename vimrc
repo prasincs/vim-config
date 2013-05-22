@@ -154,7 +154,7 @@ call pathogen#helptags()
 " NERDTree
 map <F2> :NERDTreeToggle<CR>
 "Enable Ctrl+P to paste
-map <C-p> :set paste<CR>
+map <C-Y> :set paste<CR>
 
 " Folds
 set foldmethod=indent
@@ -212,3 +212,5 @@ autocmd BufRead,BufNewFile *.cljs setlocal filetype=clojure
 
 map <leader>vimrc :tabe ~/.vim/.vimrc<cr>
 autocmd bufwritepost .vimrc source $MYVIMRC
+
+
