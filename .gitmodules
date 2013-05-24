@@ -2,8 +2,8 @@
   path=vim/bundle/vim-colors-solarized
   url=git://github.com/altercation/vim-colors-solarized.git
 [submodule "vim/bundle/surround"]
-  path=vim/bundle/vim-surround
-  url=git://github.com/tpope/vim-surround.git
+	path = vim/bundle/surround
+	url = git@github.com:tpope/vim-surround.git
 [submodule "vim/bundle/vim-javascript"]
   path = vim/bundle/vim-javascript
   url = git://github.com/pangloss/vim-javascript.git
@@ -25,19 +25,16 @@
 [submodule "vim/bundle/vim-paredit"]
 	path = vim/bundle/vim-paredit
 	url = git@github.com:vim-scripts/paredit.vim.git
-[submodule "vim/bundle/supertab"]
-	path = vim/bundle/supertab
-	url = git@github.com:ervandew/supertab.git
 [submodule "vim/bundle/nerdcommenter"]
 	path = vim/bundle/nerdcommenter
 	url = git@github.com:scrooloose/nerdcommenter.git
 [submodule "vim/bundle/syntastic"]
 	path = vim/bundle/syntastic
 	url = git@github.com:scrooloose/syntastic.git
-[submodule "bundle/supertab"]
+[submodule "vim/bundle/supertab"]
 	path = bundle/supertab
 	url = git@github.com:ervandew/supertab.git
-[submodule "bundle/sensible"]
+[submodule "vim/bundle/sensible"]
 	path = bundle/sensible
 	url = git@github.com:tpope/vim-sensible.git
 [submodule "vim/bundle/fireplace"]
