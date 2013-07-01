@@ -32,10 +32,10 @@
 	path = vim/bundle/syntastic
 	url = git@github.com:scrooloose/syntastic.git
 [submodule "vim/bundle/supertab"]
-	path = bundle/supertab
+	path = vim/bundle/supertab
 	url = git@github.com:ervandew/supertab.git
 [submodule "vim/bundle/sensible"]
-	path = bundle/sensible
+	path = vim/bundle/sensible
 	url = git@github.com:tpope/vim-sensible.git
 [submodule "vim/bundle/fireplace"]
 	path = vim/bundle/fireplace
