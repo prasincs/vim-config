@@ -9,7 +9,6 @@
 :map <M-Esc>[65~ <S-MouseUp> 
 :map! <M-Esc>[65~ <S-MouseUp>
 filetype plugin on
-
 "set tags=~/.vim/stdtags,tags,.tags,../tags
 
 autocmd InsertLeave * if pumvisible() == 0|pclose|endif
@@ -195,10 +194,11 @@ if has("gui_running")
     highlight SpecialKey guifg=#4a4a59
 endif
 
-
 if has("gui_macvim") "Use Experimental Renderer option must be enabled for transparencY
-    "set transparency=15
-    set guifont=Monaco:h12
+   let s:uname = system("uname")
+   if s:uname == "Darwin\n"
+      set guifont=Menlo\ for\ Powerline:h14
+   endif
     map <SwipeLeft> :bprev<CR>
     map <SwipeRight> :bnext<CR>
 endif
@@ -209,8 +209,8 @@ endif
 
 " Syntax highlighting for clojurescript files
 autocmd BufRead,BufNewFile *.cljs setlocal filetype=clojure
-
-map <leader>vimrc :tabe ~/.vim/.vimrc<cr>
+" For statusline
+set encoding=utf-8
+set t_Co=256
 autocmd bufwritepost .vimrc source $MYVIMRC
-
-
+map <leader>vimrc :tabe ~/.vim/.vimrc<cr>

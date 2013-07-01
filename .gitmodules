@@ -55,3 +55,9 @@
 [submodule "vim/bundle/unimpaired"]
 	path = vim/bundle/unimpaired
 	url = git@github.com:tpope/vim-unimpaired.git
+[submodule "vim/powerline-fonts"]
+	path = vim/powerline-fonts
+	url = git@github.com:Lokaltog/powerline-fonts.git
+[submodule "vim/bundle/powerline"]
+	path = vim/bundle/powerline
+	url = git@github.com:Lokaltog/powerline.git
