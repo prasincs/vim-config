@@ -10,6 +10,7 @@
 [submodule "vim/bundle/nerdtree"]
   path = vim/bundle/nerdtree
   url = https://github.com/vim-scripts/The-NERD-tree.git
+  ignore = untracked
 [submodule "vim/bundle/phpcomplete"]
   path = vim/bundle/phpcomplete
   url = https://github.com/shawncplus/phpcomplete.vim
