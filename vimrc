@@ -1,22 +1,15 @@
 :let mapleader=","
 
-:map <M-Esc>[62~ <MouseDown> 
-:map! <M-Esc>[62~ <MouseDown> 
-:map <M-Esc>[63~ <MouseUp> 
-:map! <M-Esc>[63~ <MouseUp> 
-:map <M-Esc>[64~ <S-MouseDown> 
-:map! <M-Esc>[64~ <S-MouseDown> 
-:map <M-Esc>[65~ <S-MouseUp> 
-:map! <M-Esc>[65~ <S-MouseUp>
+" Common settings
 filetype plugin on
-"set tags=~/.vim/stdtags,tags,.tags,../tags
-
-autocmd InsertLeave * if pumvisible() == 0|pclose|endif
+"" Enable filetype detection
+filetype on
+" " OPTIONAL: This enables automatic indentation as you type.
+filetype indent on
+set tags=~/.vim/stdtags,tags,.tags,../tags
 set ai sw=4
 " enable mouse wherever
 set mouse=a
-" " OPTIONAL: This enables automatic indentation as you type.
-filetype indent on
 " It's VIM, not VI
 set nocompatible
 
@@ -24,10 +17,13 @@ set nocompatible
 set softtabstop=2
 set shiftwidth=2
 set expandtab
+" Additional vim features to optionally uncomment.
+set showcmd
+set showmatch
+set showmode
+set incsearch
+set ruler
 
-
-" Enable filetype detection
-filetype on
 
 " Add and delete spaces in increments of `shiftwidth' for tabs
 set smarttab
@@ -46,6 +42,17 @@ command! DeleteTrailingWs :%s/\s\+$//
 " Convert all tab characters to two spaces
 command! Untab :%s/\t/  /g
 
+" Enable pathogen
+"call pathogen#infect()
+call pathogen#runtime_append_all_bundles()
+call pathogen#helptags()
+" Enable pathogen
+call pathogen#infect()
+" call pathogen#runtime_append_all_bundles()
+call pathogen#helptags()
+
+
+""" Functions
 
 function! ConditionalPairMap(open, close)
   let line = getline('.')
@@ -56,22 +63,8 @@ function! ConditionalPairMap(open, close)
     return a:open . a:close . repeat("\<left>", len(a:close))
   endif
 endf
+""" End Functions
 
-" Additional vim features to optionally uncomment.
-set showcmd
-set showmatch
-set showmode
-set incsearch
-set ruler
-
-"Allow copy-pasting
-map <C-c> "+y
-
-" Enable pathogen
-"call pathogen#infect()
-call pathogen#runtime_append_all_bundles()
-call pathogen#helptags()
-"Solarized color scheme
 syntax enable
 if !has('gui_running')
     " Compatibility for Terminal
@@ -84,26 +77,19 @@ if !has('gui_running')
         let g:solarized_termcolors=16
     endif
 endif
+""" Colorschemes
 colorscheme solarized
 hi Normal ctermbg=NONE
 set background=dark
-
-
-" NERDTree
-map <F2> :NERDTreeToggle<CR>
-"Enable Ctrl+P to paste
-map <C-p> :set paste<CR>
+autocmd InsertLeave * if pumvisible() == 0|pclose|endif
 
 " Folds
+autocmd InsertLeave * if pumvisible() == 0|pclose|endif
+autocmd InsertLeave * if pumvisible() == 0|pclose|endif
+autocmd InsertLeave * if pumvisible() == 0|pclose|endif
+
 set foldmethod=indent
 set foldlevel=99
-
-" Moving around windows
-
-map <c-j> <c-w>j
-map <c-k> <c-w>k
-map <c-l> <c-w>l
-map <c-h> <c-w>h
 
 " SuperTab plugin
 
@@ -113,18 +99,7 @@ let g:SuperTabDefaultCompletionType = "context"
 set completeopt=menuone,longest,preview
 
 
-:map <M-Esc>[62~ <MouseDown> 
-:map! <M-Esc>[62~ <MouseDown> 
-:map <M-Esc>[63~ <MouseUp> 
-:map! <M-Esc>[63~ <MouseUp> 
-:map <M-Esc>[64~ <S-MouseDown> 
-:map! <M-Esc>[64~ <S-MouseDown> 
-:map <M-Esc>[65~ <S-MouseUp> 
-:map! <M-Esc>[65~ <S-MouseUp>
 
-"set tags=~/.vim/stdtags,tags,.tags,../tags
-
-autocmd InsertLeave * if pumvisible() == 0|pclose|endif
 
 
 " Delete trailing whitespace and tabs at the end of each line
@@ -135,36 +110,36 @@ command! Untab :%s/\t/  /g
 
 
 
-" Additional vim features to optionally uncomment.
-set showcmd
-set showmatch
-set showmode
-set incsearch
-set ruler
-
-"Allow copy-pasting
-map <C-c> "+y
-
-" Enable pathogen
-call pathogen#infect()
-" call pathogen#runtime_append_all_bundles()
-call pathogen#helptags()
-
 " NERDTree
 map <F2> :NERDTreeToggle<CR>
 "Enable Ctrl+P to paste
 map <C-Y> :set paste<CR>
-
-" Folds
-set foldmethod=indent
-set foldlevel=99
-
 " Moving around windows
-
 map <c-j> <c-w>j
 map <c-k> <c-w>k
 map <c-l> <c-w>l
 map <c-h> <c-w>h
+map <leader>vimrc :tabe ~/.vim/.vimrc<cr>
+nmap <F8> :TagbarToggle<CR>
+:map <M-Esc>[62~ <MouseDown> 
+:map! <M-Esc>[62~ <MouseDown> 
+:map <M-Esc>[63~ <MouseUp> 
+:map! <M-Esc>[63~ <MouseUp> 
+:map <M-Esc>[64~ <S-MouseDown> 
+:map! <M-Esc>[64~ <S-MouseDown> 
+:map <M-Esc>[65~ <S-MouseUp> 
+:map! <M-Esc>[65~ <S-MouseUp>
+" Moving around windows
+map <c-j> <c-w>j
+map <c-k> <c-w>k
+map <c-l> <c-w>l
+map <c-h> <c-w>h
+
+" NERDTree
+map <F2> :NERDTreeToggle<CR>
+"Enable Ctrl+P to paste
+map <C-y> :set paste<CR>
+
 
 " Let's remember some things, like where the .vim folder is.
 if has("win32") || has("win64")
@@ -177,9 +152,9 @@ else
     let sep=":"
 endif
 
-
-
-nmap <F8> :TagbarToggle<CR>
+" Folds
+set foldmethod=indent
+set foldlevel=99
 
 if has("gui_running")
     set cursorline                  "Highlight background of current line
@@ -213,4 +188,3 @@ autocmd BufRead,BufNewFile *.cljs setlocal filetype=clojure
 set encoding=utf-8
 set t_Co=256
 autocmd bufwritepost .vimrc source $MYVIMRC
-map <leader>vimrc :tabe ~/.vim/.vimrc<cr>

@@ -65,3 +65,6 @@
 [submodule "vim/bundle/powerline"]
 	path = vim/bundle/powerline
 	url = git@github.com:Lokaltog/vim-powerline.git
+[submodule "vim/bundle/gocode"]
+	path = vim/bundle/gocode
+	url = git@github.com:Blackrush/vim-gocode.git
