@@ -68,3 +68,6 @@
 [submodule "vim/bundle/gocode"]
 	path = vim/bundle/gocode
 	url = git@github.com:Blackrush/vim-gocode.git
+[submodule "vim/bundle/fugitive"]
+	path = vim/bundle/fugitive
+	url = git@github.com:tpope/vim-fugitive.git
