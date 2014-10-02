@@ -1,6 +1,4 @@
 let g:netrw_dirhistmax  =10
-let g:netrw_dirhist_cnt =4
-let g:netrw_dirhist_1='/Users/gautamp/github-projects/mongo/src'
-let g:netrw_dirhist_2='/Users/gautamp/github-projects/mongo'
-let g:netrw_dirhist_3='/home/prasanna/golang/goread'
-let g:netrw_dirhist_4='/home/prasanna/erlang/examples/streamers'
+let g:netrw_dirhist_cnt =2
+let g:netrw_dirhist_1='/Users/gautamp/github-projects/ncaaf-jms-rest'
+let g:netrw_dirhist_2='/Users/gautamp/sysops/zk-exhibitor-cookbook/attributes'
