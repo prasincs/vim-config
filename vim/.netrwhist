@@ -1,4 +1,0 @@
-let g:netrw_dirhistmax  =10
-let g:netrw_dirhist_cnt =2
-let g:netrw_dirhist_1='/Users/gautamp/github-projects/ncaaf-jms-rest'
-let g:netrw_dirhist_2='/Users/gautamp/sysops/zk-exhibitor-cookbook/attributes'

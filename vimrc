@@ -184,6 +184,10 @@ endif
 
 " Syntax highlighting for clojurescript files
 autocmd BufRead,BufNewFile *.cljs setlocal filetype=clojure
+
+" Limit line wrapping to 80 characters for Markdown files
+autocmd BufRead,BufNewFile *.md setlocal textwidth=80
+
 " For statusline
 set encoding=utf-8
 set t_Co=256
