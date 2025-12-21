@@ -1,1 +1,5 @@
+# Vim swap files
 *.sw[a-z]
+
+# LSP and Mason data
+.luarc.json
