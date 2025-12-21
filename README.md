@@ -16,8 +16,11 @@ This is a complete rewrite of my [original Vim configuration](https://github.com
 
 ### Language Support
 - **Zig**: Full ZLS (Zig Language Server) integration with build/test/run keymaps
+- **Rust**: rust-analyzer with cargo integration (auto-installed via Mason)
+- **Go**: gopls with go module support (auto-installed via Mason)
 - **Lua**: Neodev for Neovim Lua API support
 - Auto-install Tree-sitter parsers for any language
+- Language servers automatically managed by Mason
 
 ### Additional Plugins
 - **Git Integration**: gitsigns for inline git changes
@@ -41,14 +44,43 @@ nvim --version
 
 # Install required tools
 # For Ubuntu/Debian (Crostini):
-sudo apt install ripgrep fd-find wl-clipboard
+sudo apt install ripgrep fd-find wl-clipboard build-essential
 
-# For Zig development:
-# Install Zig: https://ziglang.org/download/
-# Install ZLS: https://github.com/zigtools/zls
+# Language servers are auto-installed via Mason on first run!
+# But if you want the compilers/toolchains:
+
+# For Rust development (optional):
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# For Go development (optional):
+# Download from: https://go.dev/dl/
+
+# For Zig development (optional):
+# Download from: https://ziglang.org/download/
 ```
 
 ### Setup
+
+#### Option 1: Quick Install (Recommended)
+Use the bootstrap script for automatic setup:
+
+```bash
+# One-line install:
+curl -sSL https://raw.githubusercontent.com/prasincs/vim-config/master/bootstrap.sh | bash
+
+# Or clone and run:
+git clone https://github.com/prasincs/vim-config.git ~/vim-config
+~/vim-config/bootstrap.sh
+```
+
+The bootstrap script will:
+- Install Neovim if not present
+- Set up the configuration
+- Install all plugins via lazy.nvim
+- Install language servers (rust-analyzer, gopls, zls) via Mason
+- Optionally install language toolchains (Rust, Go, Zig)
+
+#### Option 2: Manual Setup
 
 1. **Clone this repository**:
    ```bash
@@ -70,6 +102,7 @@ sudo apt install ripgrep fd-find wl-clipboard
    ```
 
    Lazy.nvim will automatically install all plugins on first launch.
+   Mason will automatically install configured language servers.
 
 ### GUI Configuration (Optional)
 
@@ -110,15 +143,18 @@ Install a [Nerd Font](https://www.nerdfonts.com/) for proper icon display.
 - `<leader>dl` - Diagnostic list
 - `<leader>q` - Open diagnostic quickfix list
 
-### Zig Development
-- `<leader>m` - Build project (`zig build`)
-- `<leader>r` - Build and run (quickfix mode)
-- `<leader>t` - Build and test
+### Development Commands (Zig/Rust/Go)
+- `<leader>m` - Build project (uses `zig build`, `cargo build`, or `go build`)
+- `<leader>r` - Build and run (language-aware)
+- `<leader>t` - Run tests (language-aware)
 - `<leader>M` - Build with custom args
-- `<leader>R` - Run with custom args
 - `<leader>rr` - Run in terminal (persistent output)
 - `<leader>rt` - Test in terminal (persistent output)
-- `<leader>zf` - Quick run current file
+
+#### Language-specific quick run:
+- `<leader>zf` - Quick run current Zig file
+- `<leader>rf` - Quick compile & run current Rust file
+- `<leader>gf` - Quick run current Go file
 
 ### Quickfix List
 - `<leader>co` - Open quickfix list
@@ -180,6 +216,40 @@ Edit the `require("lazy").setup({...})` section in `init.lua` and add plugin spe
 
 ### Adding Language Servers
 Use Mason's UI (`:Mason`) or add to `ensure_installed` in the mason-lspconfig setup.
+
+## Portability
+
+This configuration is designed to be instantly portable to any new machine:
+
+1. **Self-contained**: All dependencies managed by Mason
+2. **Auto-installation**: Language servers install on first run
+3. **Bootstrap script**: One command to set up everything
+4. **No system dependencies**: Language servers run from `~/.local/share/nvim/mason/`
+
+To move to a new machine, just run:
+```bash
+curl -sSL https://raw.githubusercontent.com/prasincs/vim-config/master/bootstrap.sh | bash
+```
+
+### Health Check
+
+Verify your setup anytime by running:
+```bash
+~/vim-config/check-health.sh
+```
+
+Or from the repo:
+```bash
+./check-health.sh
+```
+
+This will check:
+- ✅ Neovim installation
+- ✅ All plugins (lazy.nvim, Mason, etc.)
+- ✅ Language servers (rust-analyzer, gopls, zls)
+- ✅ Language toolchains (Rust, Go, Zig)
+- ✅ Treesitter parsers
+- ✅ Clipboard support
 
 ## Troubleshooting
 

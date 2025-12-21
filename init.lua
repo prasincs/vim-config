@@ -69,8 +69,24 @@ require("lazy").setup({
       -- Setup Mason
       require("mason").setup()
       require("mason-lspconfig").setup({
-        ensure_installed = {},
+        ensure_installed = { "rust_analyzer", "gopls" },
+        automatic_installation = true,
       })
+
+      -- Setup LSP servers using the modern vim.lsp.config API
+      -- Rust analyzer
+      vim.lsp.config['rust-analyzer'] = {
+        cmd = { vim.fn.stdpath("data") .. "/mason/bin/rust-analyzer" },
+        filetypes = { "rust" },
+        root_markers = { "Cargo.toml", ".git" },
+      }
+
+      -- Go language server
+      vim.lsp.config.gopls = {
+        cmd = { vim.fn.stdpath("data") .. "/mason/bin/gopls" },
+        filetypes = { "go", "gomod", "gowork", "gotmpl" },
+        root_markers = { "go.mod", ".git", "go.work" },
+      }
 
       -- LSP keymaps
       vim.api.nvim_create_autocmd("LspAttach", {
@@ -103,7 +119,11 @@ require("lazy").setup({
         filetypes = { "zig", "zir" },
         root_markers = { "zls.json", ".git", "build.zig" },
       }
+
+      -- Enable all configured LSP servers
       vim.lsp.enable("zls")
+      vim.lsp.enable("rust-analyzer")
+      vim.lsp.enable("gopls")
     end,
   },
 
@@ -170,7 +190,7 @@ require("lazy").setup({
     build = ":TSUpdate",
     config = function()
       require("nvim-treesitter.configs").setup({
-        ensure_installed = { "zig", "lua", "vim", "vimdoc" },
+        ensure_installed = { "zig", "rust", "go", "lua", "vim", "vimdoc" },
         auto_install = true,
         highlight = {
           enable = true,
@@ -310,23 +330,97 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
--- Zig build and run keymaps (using :make and quickfix)
-vim.keymap.set("n", "<leader>m", ":make<CR>", { desc = "Build with :make" })
-vim.keymap.set("n", "<leader>r", ":make run<CR>", { desc = "Build and Run (quick)" })
-vim.keymap.set("n", "<leader>t", ":make test<CR>", { desc = "Build and Test" })
+-- Rust configuration
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "rust",
+  callback = function()
+    -- Set makeprg to use cargo
+    vim.opt_local.makeprg = "cargo build"
 
--- Make with custom arguments (leaves you in command mode to add flags)
+    -- Set errorformat for rustc compiler errors
+    vim.opt_local.errorformat =
+      "%E--> %f:%l:%c," ..
+      "%W--> %f:%l:%c," ..
+      "%C%m"
+  end,
+})
+
+-- Go configuration
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "go",
+  callback = function()
+    -- Set makeprg to use go build
+    vim.opt_local.makeprg = "go build"
+
+    -- Set errorformat for Go compiler errors
+    vim.opt_local.errorformat = "%f:%l:%c: %m,%f:%l: %m"
+  end,
+})
+
+-- Build and run keymaps (language-aware)
+-- These work with makeprg set by FileType autocmds
+vim.keymap.set("n", "<leader>m", ":make<CR>", { desc = "Build with :make" })
 vim.keymap.set("n", "<leader>M", ":make ", { desc = "Build with custom args" })
-vim.keymap.set("n", "<leader>R", ":make run ", { desc = "Run with custom args (quick)" })
+
+-- Language-specific run and test commands
+vim.keymap.set("n", "<leader>r", function()
+  local ft = vim.bo.filetype
+  if ft == "zig" then
+    vim.cmd("make run")
+  elseif ft == "rust" then
+    vim.cmd("!cargo run")
+  elseif ft == "go" then
+    vim.cmd("!go run .")
+  else
+    print("Run not configured for filetype: " .. ft)
+  end
+end, { desc = "Build and Run (quickfix)" })
+
+vim.keymap.set("n", "<leader>t", function()
+  local ft = vim.bo.filetype
+  if ft == "zig" then
+    vim.cmd("make test")
+  elseif ft == "rust" then
+    vim.cmd("!cargo test")
+  elseif ft == "go" then
+    vim.cmd("!go test")
+  else
+    print("Test not configured for filetype: " .. ft)
+  end
+end, { desc = "Run Tests" })
 
 -- Terminal-based run (output stays visible, can copy from it)
 vim.keymap.set("n", "<leader>rr", function()
-  vim.cmd("split | terminal zig build run")
+  local ft = vim.bo.filetype
+  local cmd
+  if ft == "zig" then
+    cmd = "zig build run"
+  elseif ft == "rust" then
+    cmd = "cargo run"
+  elseif ft == "go" then
+    cmd = "go run ."
+  else
+    print("Run not configured for filetype: " .. ft)
+    return
+  end
+  vim.cmd("split | terminal " .. cmd)
   vim.cmd("startinsert")
 end, { desc = "Run in terminal (persistent output)" })
 
 vim.keymap.set("n", "<leader>rt", function()
-  vim.cmd("split | terminal zig build test")
+  local ft = vim.bo.filetype
+  local cmd
+  if ft == "zig" then
+    cmd = "zig build test"
+  elseif ft == "rust" then
+    cmd = "cargo test"
+  elseif ft == "go" then
+    cmd = "go test"
+  else
+    print("Test not configured for filetype: " .. ft)
+    return
+  end
+  vim.cmd("split | terminal " .. cmd)
   vim.cmd("startinsert")
 end, { desc = "Test in terminal (persistent output)" })
 
@@ -350,7 +444,9 @@ vim.keymap.set("n", "<leader>ce", function()
   print("Copied " .. #errors .. " errors to clipboard")
 end, { desc = "Copy all errors to clipboard" })
 
--- Quick run current file (for single-file Zig programs)
+-- Quick run current file (for single-file programs)
 vim.keymap.set("n", "<leader>zf", ":!zig run %<CR>", { desc = "Zig Run Current File" })
+vim.keymap.set("n", "<leader>rf", ":!rustc % && ./%:t:r<CR>", { desc = "Rust Run Current File" })
+vim.keymap.set("n", "<leader>gf", ":!go run %<CR>", { desc = "Go Run Current File" })
 -- clear ^@ characters
 vim.keymap.set('n', '<leader>fn', ':%s/\\%x00/\\r/g<CR>', { desc = 'Fix null bytes to newlines' })
