@@ -138,23 +138,70 @@ fi
 
 # Clone the configuration
 echo "📥 Cloning Neovim configuration..."
-git clone https://github.com/${GITHUB_USER:-prasincs}/vim-config.git "$HOME/.config/nvim"
+git clone -b ${GITHUB_BRANCH:-neovim-2025} https://github.com/${GITHUB_USER:-prasincs}/vim-config.git "$HOME/.config/nvim"
+
+# Ensure init.lua exists at the expected location
+if [ ! -f "$HOME/.config/nvim/init.lua" ]; then
+    echo "❌ Error: init.lua not found after clone!"
+    echo "   Expected: $HOME/.config/nvim/init.lua"
+    exit 1
+fi
 
 # First run to install plugins and language servers
 echo "🔧 Installing plugins and language servers..."
 echo "This may take a few minutes on first run..."
 
-# Install lazy.nvim plugins
-nvim --headless "+Lazy! sync" +qa
+# Install lazy.nvim plugins and verify
+echo "   Installing Lazy.nvim plugins..."
+nvim --headless "+Lazy! sync" +qa 2>&1
+
+# Verify lazy.nvim was installed
+if [ ! -d "$HOME/.local/share/nvim/lazy/lazy.nvim" ]; then
+    echo "❌ Lazy.nvim failed to install!"
+    echo "   Try running 'nvim' manually to see errors"
+    exit 1
+fi
+echo "   ✅ Lazy.nvim plugins installed"
 
 # Wait a moment for lazy to finish
 sleep 2
 
 # Install Mason packages (language servers)
-nvim --headless -c "MasonInstall rust-analyzer gopls zls" -c "qall" 2>/dev/null || true
+echo "   Installing language servers via Mason..."
+nvim --headless -c "MasonInstall rust-analyzer gopls" -c "sleep 30" -c "qall" 2>&1 || true
+
+# Verify Mason packages installed
+MASON_FAILED=0
+if [ ! -x "$HOME/.local/share/nvim/mason/bin/rust-analyzer" ]; then
+    echo "   ⚠️  rust-analyzer not installed (will retry)"
+    MASON_FAILED=1
+fi
+if [ ! -x "$HOME/.local/share/nvim/mason/bin/gopls" ]; then
+    echo "   ⚠️  gopls not installed (will retry)"
+    MASON_FAILED=1
+fi
+
+# Retry Mason install if needed
+if [ $MASON_FAILED -eq 1 ]; then
+    echo "   Retrying Mason install..."
+    nvim --headless -c "MasonInstall rust-analyzer gopls" -c "sleep 60" -c "qall" 2>&1 || true
+fi
+
+# Final verification of Mason packages
+if [ -x "$HOME/.local/share/nvim/mason/bin/rust-analyzer" ]; then
+    echo "   ✅ rust-analyzer installed"
+else
+    echo "   ⚠️  rust-analyzer not installed - run :MasonInstall rust-analyzer in nvim"
+fi
+if [ -x "$HOME/.local/share/nvim/mason/bin/gopls" ]; then
+    echo "   ✅ gopls installed"
+else
+    echo "   ⚠️  gopls not installed - run :MasonInstall gopls in nvim"
+fi
 
 # Install Treesitter parsers
-nvim --headless -c "TSUpdateSync" -c "qall" 2>/dev/null || true
+echo "   Installing Treesitter parsers..."
+nvim --headless -c "TSInstall rust go zig lua vim vimdoc" -c "sleep 10" -c "qall" 2>&1 || true
 
 # Optional: Install language toolchains if desired
 echo ""

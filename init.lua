@@ -188,17 +188,13 @@ require("lazy").setup({
   {
     "nvim-treesitter/nvim-treesitter",
     build = ":TSUpdate",
-    config = function()
-      require("nvim-treesitter.configs").setup({
-        ensure_installed = { "zig", "rust", "go", "lua", "vim", "vimdoc" },
-        auto_install = true,
-        highlight = {
-          enable = true,
-          additional_vim_regex_highlighting = false,
-        },
-        indent = { enable = true },
-      })
-    end,
+    main = "nvim-treesitter",
+    opts = {
+      ensure_installed = { "zig", "rust", "go", "lua", "vim", "vimdoc" },
+      auto_install = true,
+      highlight = { enable = true },
+      indent = { enable = true },
+    },
   },
 
   -- File explorer
