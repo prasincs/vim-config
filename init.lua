@@ -31,19 +31,20 @@ vim.opt.signcolumn = "yes"
 vim.opt.updatetime = 50
 vim.opt.colorcolumn = "100"
 
--- Clipboard configuration for Wayland/Crostini
-vim.g.clipboard = {
-  name = 'WaylandClipboard',
-  copy = {
-    ['+'] = 'wl-copy',
-    ['*'] = 'wl-copy',
-  },
-  paste = {
-    ['+'] = 'wl-paste --no-newline',
-    ['*'] = 'wl-paste --no-newline',
-  },
-  cache_enabled = 0,
-}
+-- Clipboard configuration (macOS uses pbcopy/pbpaste by default)
+-- Uncomment below for Wayland/Crostini if needed
+-- vim.g.clipboard = {
+--   name = 'WaylandClipboard',
+--   copy = {
+--     ['+'] = 'wl-copy',
+--     ['*'] = 'wl-copy',
+--   },
+--   paste = {
+--     ['+'] = 'wl-paste --no-newline',
+--     ['*'] = 'wl-paste --no-newline',
+--   },
+--   cache_enabled = 0,
+-- }
 
 -- Set leader key
 vim.g.mapleader = " "
@@ -74,16 +75,16 @@ require("lazy").setup({
       })
 
       -- Setup LSP servers using the modern vim.lsp.config API
-      -- Rust analyzer
-      vim.lsp.config['rust-analyzer'] = {
-        cmd = { vim.fn.stdpath("data") .. "/mason/bin/rust-analyzer" },
+      -- Rust analyzer (uses rust-analyzer from PATH or Mason)
+      vim.lsp.config['rust_analyzer'] = {
+        cmd = { "rust-analyzer" },
         filetypes = { "rust" },
         root_markers = { "Cargo.toml", ".git" },
       }
 
-      -- Go language server
+      -- Go language server (uses gopls from PATH or Mason)
       vim.lsp.config.gopls = {
-        cmd = { vim.fn.stdpath("data") .. "/mason/bin/gopls" },
+        cmd = { "gopls" },
         filetypes = { "go", "gomod", "gowork", "gotmpl" },
         root_markers = { "go.mod", ".git", "go.work" },
       }
@@ -122,7 +123,7 @@ require("lazy").setup({
 
       -- Enable all configured LSP servers
       vim.lsp.enable("zls")
-      vim.lsp.enable("rust-analyzer")
+      vim.lsp.enable("rust_analyzer")
       vim.lsp.enable("gopls")
     end,
   },
@@ -190,7 +191,7 @@ require("lazy").setup({
     build = ":TSUpdate",
     main = "nvim-treesitter",
     opts = {
-      ensure_installed = { "zig", "rust", "go", "lua", "vim", "vimdoc" },
+      ensure_installed = { "zig", "rust", "go", "lua", "vim", "vimdoc", "markdown", "markdown_inline" },
       auto_install = true,
       highlight = { enable = true },
       indent = { enable = true },
@@ -210,7 +211,7 @@ require("lazy").setup({
   -- Fuzzy finder
   {
     "nvim-telescope/telescope.nvim",
-    branch = "0.1.x",
+    branch = "master",
     dependencies = { "nvim-lua/plenary.nvim" },
     config = function()
       local builtin = require("telescope.builtin")
@@ -260,10 +261,78 @@ require("lazy").setup({
     end,
   },
 
+  -- Zen mode for distraction-free writing
+  {
+    "folke/zen-mode.nvim",
+    opts = {},
+    keys = {
+      { "<leader>z", "<cmd>ZenMode<cr>", desc = "Zen Mode" },
+    },
+  },
+
+  -- Dim inactive text while writing
+  {
+    "folke/twilight.nvim",
+    opts = {},
+  },
+
+  -- Markdown rendering in-buffer
+  {
+    "MeanderingProgrammer/render-markdown.nvim",
+    dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
+    ft = { "markdown" },
+    opts = {},
+  },
+
+  -- Code outline/navigation (works with LSP + Treesitter)
+  {
+    "stevearc/aerial.nvim",
+    dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
+    opts = {
+      backends = { "treesitter", "lsp", "markdown", "man" },
+      layout = {
+        min_width = 30,
+        default_direction = "right",
+      },
+      filter_kind = false, -- show all symbol types
+    },
+    keys = {
+      { "<leader>o", "<cmd>AerialToggle<cr>", desc = "Toggle outline" },
+      { "<leader>O", "<cmd>AerialNavToggle<cr>", desc = "Toggle outline nav" },
+      { "{", "<cmd>AerialPrev<cr>", desc = "Previous symbol" },
+      { "}", "<cmd>AerialNext<cr>", desc = "Next symbol" },
+    },
+  },
+
   -- Multi-cursor support (VSCode-style)
   {
     "mg979/vim-visual-multi",
     branch = "master",
+  },
+
+  -- Snacks.nvim (required for claudecode.nvim terminal)
+  {
+    "folke/snacks.nvim",
+    priority = 1000,
+    lazy = false,
+    opts = {},
+  },
+
+  -- Claude Code AI integration
+  {
+    "coder/claudecode.nvim",
+    dependencies = { "folke/snacks.nvim" },
+    opts = {
+      terminal_cmd = vim.fn.expand("~/.claude/local/claude"),
+    },
+    keys = {
+      { "<leader>ac", "<cmd>ClaudeCode<cr>", desc = "Toggle Claude" },
+      { "<leader>af", "<cmd>ClaudeCodeFocus<cr>", desc = "Focus Claude" },
+      { "<leader>as", "<cmd>ClaudeCodeSend<cr>", mode = "v", desc = "Send to Claude" },
+      { "<leader>ab", "<cmd>ClaudeCodeAdd %<cr>", desc = "Add current buffer" },
+      { "<leader>aa", "<cmd>ClaudeCodeDiffAccept<cr>", desc = "Accept diff" },
+      { "<leader>ad", "<cmd>ClaudeCodeDiffDeny<cr>", desc = "Reject diff" },
+    },
   },
 
 })
@@ -271,15 +340,6 @@ require("lazy").setup({
 -- Additional keybindings
 vim.keymap.set("n", "<leader>pv", vim.cmd.Ex)
 
--- Paste from Chrome OS clipboard (workaround for Crostini)
-vim.keymap.set({"n", "v", "i"}, "<C-S-v>", function()
-  local clip = vim.fn.system("wl-paste --no-newline")
-  if vim.fn.mode() == "i" then
-    vim.api.nvim_put({clip}, "c", true, true)
-  else
-    vim.api.nvim_put(vim.split(clip, "\n"), "l", true, true)
-  end
-end, { desc = "Paste from Chrome OS" })
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
 vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv")
 vim.keymap.set("n", "J", "mzJ`z")
@@ -292,6 +352,24 @@ vim.keymap.set({"n", "v"}, "<leader>y", [["+y]])
 vim.keymap.set("n", "<leader>Y", [["+Y]])
 vim.keymap.set({"n", "v"}, "<leader>d", [["_d]])
 vim.keymap.set("n", "Q", "<nop>")
+
+-- Disable Ctrl-Z in ClaudeCode terminal (prevents accidental suspend)
+vim.api.nvim_create_autocmd("TermOpen", {
+  callback = function()
+    -- Check buffer name or terminal command for claude
+    local bufname = vim.api.nvim_buf_get_name(0):lower()
+    if bufname:match("claude") or bufname:match("ClaudeCode") then
+      vim.keymap.set("t", "<C-z>", "<nop>", { buffer = 0 })
+    end
+    -- Also set after a short delay to catch dynamically named terminals
+    vim.defer_fn(function()
+      local name = vim.api.nvim_buf_get_name(0):lower()
+      if name:match("claude") then
+        vim.keymap.set("t", "<C-z>", "<nop>", { buffer = 0 })
+      end
+    end, 100)
+  end,
+})
 
 -- Diagnostic configuration
 vim.diagnostic.config({
@@ -350,6 +428,111 @@ vim.api.nvim_create_autocmd("FileType", {
 
     -- Set errorformat for Go compiler errors
     vim.opt_local.errorformat = "%f:%l:%c: %m,%f:%l: %m"
+  end,
+})
+
+-- Markdown/prose configuration
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "markdown",
+  callback = function()
+    vim.opt_local.wrap = true
+    vim.opt_local.linebreak = true
+    vim.opt_local.spell = true
+    vim.opt_local.conceallevel = 2
+  end,
+})
+
+-- Markdown image helper functions
+local function get_images_dir()
+  -- Look for common blog static directories, fallback to ./images
+  local candidates = { "static/images", "assets/images", "public/images", "images" }
+  local cwd = vim.fn.getcwd()
+  for _, dir in ipairs(candidates) do
+    if vim.fn.isdirectory(cwd .. "/" .. dir) == 1 then
+      return dir
+    end
+  end
+  return "images"
+end
+
+local function insert_markdown_image(image_path)
+  local filename = vim.fn.fnamemodify(image_path, ":t")
+  local images_dir = get_images_dir()
+  local dest_path = images_dir .. "/" .. filename
+  local full_dest = vim.fn.getcwd() .. "/" .. dest_path
+
+  -- Create images directory if it doesn't exist
+  vim.fn.mkdir(vim.fn.fnamemodify(full_dest, ":h"), "p")
+
+  -- Copy file
+  local result = vim.fn.system({ "cp", vim.fn.expand(image_path), full_dest })
+  if vim.v.shell_error ~= 0 then
+    vim.notify("Failed to copy image: " .. result, vim.log.levels.ERROR)
+    return
+  end
+
+  -- Insert markdown image tag at cursor
+  local md_tag = string.format("![%s](/%s)", vim.fn.fnamemodify(filename, ":r"), dest_path)
+  vim.api.nvim_put({ md_tag }, "c", true, true)
+  vim.notify("Inserted: " .. dest_path, vim.log.levels.INFO)
+end
+
+local function paste_image_from_clipboard(custom_name)
+  -- Check if pngpaste is available
+  if vim.fn.executable("pngpaste") ~= 1 then
+    vim.notify("pngpaste not found. Install with: brew install pngpaste", vim.log.levels.ERROR)
+    return
+  end
+
+  local images_dir = get_images_dir()
+  local timestamp = os.date("%Y%m%d-%H%M%S")
+  local basename = custom_name or ("screenshot-" .. timestamp)
+  -- Ensure .png extension
+  local filename = basename:match("%.png$") and basename or (basename .. ".png")
+  local dest_path = images_dir .. "/" .. filename
+  local full_dest = vim.fn.getcwd() .. "/" .. dest_path
+
+  -- Create images directory if it doesn't exist
+  vim.fn.mkdir(vim.fn.fnamemodify(full_dest, ":h"), "p")
+
+  -- Save clipboard image using pngpaste
+  local result = vim.fn.system({ "pngpaste", full_dest })
+  if vim.v.shell_error ~= 0 then
+    vim.notify("No image in clipboard or paste failed", vim.log.levels.WARN)
+    return
+  end
+
+  -- Insert markdown image tag at cursor
+  local alt_text = vim.fn.fnamemodify(filename, ":r")
+  local md_tag = string.format("![%s](/%s)", alt_text, dest_path)
+  vim.api.nvim_put({ md_tag }, "c", true, true)
+  vim.notify("Pasted: " .. dest_path, vim.log.levels.INFO)
+end
+
+-- Command: :MarkdownInsertImage ~/path/to/image.png
+vim.api.nvim_create_user_command("MarkdownInsertImage", function(opts)
+  if opts.args == "" then
+    vim.notify("Usage: :MarkdownInsertImage <path>", vim.log.levels.WARN)
+    return
+  end
+  insert_markdown_image(opts.args)
+end, { nargs = 1, complete = "file", desc = "Insert image into markdown" })
+
+-- Keymap for pasting from clipboard (markdown files only)
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "markdown",
+  callback = function()
+    vim.keymap.set("n", "<leader>mi", function() paste_image_from_clipboard() end, { buffer = true, desc = "Paste image from clipboard" })
+    vim.keymap.set("n", "<leader>mn", function()
+      vim.ui.input({ prompt = "Image name: " }, function(name)
+        if name and name ~= "" then paste_image_from_clipboard(name) end
+      end)
+    end, { buffer = true, desc = "Paste image with custom name" })
+    vim.keymap.set("n", "<leader>mI", function()
+      vim.ui.input({ prompt = "Image path: ", completion = "file" }, function(path)
+        if path then insert_markdown_image(path) end
+      end)
+    end, { buffer = true, desc = "Insert image from path" })
   end,
 })
 
