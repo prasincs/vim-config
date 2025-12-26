@@ -282,6 +282,9 @@ require("lazy").setup({
     dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
     ft = { "markdown" },
     opts = {},
+    keys = {
+      { "<leader>mr", "<cmd>RenderMarkdown toggle<cr>", desc = "Toggle markdown rendering" },
+    },
   },
 
   -- Code outline/navigation (works with LSP + Treesitter)
@@ -443,16 +446,29 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 
 -- Markdown image helper functions
+-- Configure these paths to match your workflow
+local markdown_media_config = {
+  image_search_dir = "~/Downloads",  -- Where to search for images with <Space>mI
+  recording_search_dir = "~/Desktop", -- Where to search for recordings with <Space>mR
+  image_search_depth = 2,             -- How deep to search for images
+  recording_search_depth = 1,         -- How deep to search for recordings
+}
+
 local function get_images_dir()
-  -- Look for common blog static directories, fallback to ./images
-  local candidates = { "static/images", "assets/images", "public/images", "images" }
+  -- Look for common blog static directories, fallback to static/assets/images
+  local candidates = { "static/assets/images", "static/images", "assets/images", "public/images", "images" }
   local cwd = vim.fn.getcwd()
   for _, dir in ipairs(candidates) do
     if vim.fn.isdirectory(cwd .. "/" .. dir) == 1 then
       return dir
     end
   end
-  return "images"
+  return "static/assets/images"
+end
+
+local function get_markdown_image_url(dest_path)
+  -- Hugo serves static/ from root, so strip the prefix for URLs
+  return "/" .. dest_path:gsub("^static/", "")
 end
 
 local function insert_markdown_image(image_path)
@@ -472,7 +488,8 @@ local function insert_markdown_image(image_path)
   end
 
   -- Insert markdown image tag at cursor
-  local md_tag = string.format("![%s](/%s)", vim.fn.fnamemodify(filename, ":r"), dest_path)
+  local url_path = get_markdown_image_url(dest_path)
+  local md_tag = string.format("![%s](%s)", vim.fn.fnamemodify(filename, ":r"), url_path)
   vim.api.nvim_put({ md_tag }, "c", true, true)
   vim.notify("Inserted: " .. dest_path, vim.log.levels.INFO)
 end
@@ -504,7 +521,8 @@ local function paste_image_from_clipboard(custom_name)
 
   -- Insert markdown image tag at cursor
   local alt_text = vim.fn.fnamemodify(filename, ":r")
-  local md_tag = string.format("![%s](/%s)", alt_text, dest_path)
+  local url_path = get_markdown_image_url(dest_path)
+  local md_tag = string.format("![%s](%s)", alt_text, url_path)
   vim.api.nvim_put({ md_tag }, "c", true, true)
   vim.notify("Pasted: " .. dest_path, vim.log.levels.INFO)
 end
@@ -518,6 +536,72 @@ vim.api.nvim_create_user_command("MarkdownInsertImage", function(opts)
   insert_markdown_image(opts.args)
 end, { nargs = 1, complete = "file", desc = "Insert image into markdown" })
 
+local function insert_recording_as_gif(video_path, custom_name)
+  -- Check if ffmpeg is available
+  if vim.fn.executable("ffmpeg") ~= 1 then
+    vim.notify("ffmpeg not found. Install with: brew install ffmpeg", vim.log.levels.ERROR)
+    return
+  end
+
+  local expanded_path = vim.fn.expand(video_path)
+  if vim.fn.filereadable(expanded_path) ~= 1 then
+    vim.notify("File not found: " .. video_path, vim.log.levels.ERROR)
+    return
+  end
+
+  local images_dir = get_images_dir()
+  local timestamp = os.date("%Y%m%d-%H%M%S")
+  local basename = custom_name or ("recording-" .. timestamp)
+  -- Ensure .gif extension
+  local filename = basename:match("%.gif$") and basename or (basename .. ".gif")
+  local dest_path = images_dir .. "/" .. filename
+  local full_dest = vim.fn.getcwd() .. "/" .. dest_path
+
+  -- Create images directory if it doesn't exist
+  vim.fn.mkdir(vim.fn.fnamemodify(full_dest, ":h"), "p")
+
+  vim.notify("Converting to GIF...", vim.log.levels.INFO)
+
+  -- Convert using ffmpeg (10fps, 800px width, optimized for web)
+  local cmd = string.format(
+    'ffmpeg -i "%s" -vf "fps=10,scale=800:-1:flags=lanczos" -loop 0 -y "%s" 2>&1',
+    expanded_path, full_dest
+  )
+  local result = vim.fn.system(cmd)
+  if vim.v.shell_error ~= 0 then
+    vim.notify("ffmpeg conversion failed: " .. result, vim.log.levels.ERROR)
+    return
+  end
+
+  -- Insert markdown image tag at cursor
+  local alt_text = vim.fn.fnamemodify(filename, ":r")
+  local url_path = get_markdown_image_url(dest_path)
+  local md_tag = string.format("![%s](%s)", alt_text, url_path)
+  vim.api.nvim_put({ md_tag }, "c", true, true)
+  vim.notify("Inserted: " .. dest_path, vim.log.levels.INFO)
+end
+
+-- Command: :MarkdownInsertRecording ~/Desktop/screen.mov [optional-name]
+-- Supports paths with spaces (use tab completion or quotes)
+vim.api.nvim_create_user_command("MarkdownInsertRecording", function(opts)
+  local args = opts.fargs
+  if #args == 0 then
+    vim.notify("Usage: :MarkdownInsertRecording <video-path> [name]", vim.log.levels.WARN)
+    return
+  end
+  -- Join all args except last as path if last looks like a name (no path separators)
+  local path, name
+  if #args == 1 then
+    path = args[1]
+  elseif not args[#args]:match("[/\\]") and #args > 1 then
+    name = args[#args]
+    path = table.concat(args, " ", 1, #args - 1)
+  else
+    path = table.concat(args, " ")
+  end
+  insert_recording_as_gif(path, name)
+end, { nargs = "+", complete = "file", desc = "Convert recording to GIF and insert" })
+
 -- Keymap for pasting from clipboard (markdown files only)
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "markdown",
@@ -529,10 +613,47 @@ vim.api.nvim_create_autocmd("FileType", {
       end)
     end, { buffer = true, desc = "Paste image with custom name" })
     vim.keymap.set("n", "<leader>mI", function()
-      vim.ui.input({ prompt = "Image path: ", completion = "file" }, function(path)
-        if path then insert_markdown_image(path) end
-      end)
+      local search_dir = vim.fn.expand(markdown_media_config.image_search_dir)
+      local depth = tostring(markdown_media_config.image_search_depth)
+      require("telescope.builtin").find_files({
+        prompt_title = "Select Image (" .. markdown_media_config.image_search_dir .. ")",
+        cwd = search_dir,
+        find_command = { "find", ".", "-maxdepth", depth, "-type", "f", "(", "-name", "*.png", "-o", "-name", "*.jpg", "-o", "-name", "*.jpeg", "-o", "-name", "*.gif", "-o", "-name", "*.webp", ")" },
+        attach_mappings = function(_, map)
+          map("i", "<CR>", function(prompt_bufnr)
+            local selection = require("telescope.actions.state").get_selected_entry()
+            require("telescope.actions").close(prompt_bufnr)
+            if selection then
+              local file_path = selection.path or (search_dir .. "/" .. selection[1])
+              insert_markdown_image(file_path)
+            end
+          end)
+          return true
+        end,
+      })
     end, { buffer = true, desc = "Insert image from path" })
+    vim.keymap.set("n", "<leader>mR", function()
+      local search_dir = vim.fn.expand(markdown_media_config.recording_search_dir)
+      local depth = tostring(markdown_media_config.recording_search_depth)
+      require("telescope.builtin").find_files({
+        prompt_title = "Select Recording (" .. markdown_media_config.recording_search_dir .. ")",
+        cwd = search_dir,
+        find_command = { "find", ".", "-maxdepth", depth, "-type", "f", "(", "-name", "*.mov", "-o", "-name", "*.mp4", "-o", "-name", "*.webm", ")" },
+        attach_mappings = function(_, map)
+          map("i", "<CR>", function(prompt_bufnr)
+            local selection = require("telescope.actions.state").get_selected_entry()
+            require("telescope.actions").close(prompt_bufnr)
+            if selection then
+              local file_path = selection.path or (search_dir .. "/" .. selection[1])
+              vim.ui.input({ prompt = "GIF name (optional): " }, function(name)
+                insert_recording_as_gif(file_path, name ~= "" and name or nil)
+              end)
+            end
+          end)
+          return true
+        end,
+      })
+    end, { buffer = true, desc = "Convert recording to GIF and insert" })
   end,
 })
 
