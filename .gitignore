@@ -3,3 +3,6 @@
 
 # LSP and Mason data
 .luarc.json
+
+# Claude Code local data
+.claude/
