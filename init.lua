@@ -437,6 +437,31 @@ require("lazy").setup({
         vim.cmd("normal \\<leader>pb")
         vim.fn.search("^# %%", "W")
       end, { desc = "Send block & move next" })
+
+      -- Write selected lines from terminal to new Python buffer
+      vim.keymap.set("v", "<leader>pw", function()
+        -- Yank selection
+        vim.cmd('normal! "zy')
+        local content = vim.fn.getreg("z")
+
+        -- Clean up IPython prompts (In [1]:, Out[1]:, ...:, etc.)
+        local lines = {}
+        for line in content:gmatch("[^\n]+") do
+          -- Remove IPython input prompts
+          line = line:gsub("^In %[%d+%]: ", "")
+          -- Remove continuation prompts
+          line = line:gsub("^   %.%.%.: ", "")
+          -- Skip output prompts and their content
+          if not line:match("^Out%[%d+%]:") then
+            table.insert(lines, line)
+          end
+        end
+
+        -- Create new buffer with content
+        vim.cmd("enew")
+        vim.bo.filetype = "python"
+        vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+      end, { desc = "Write selection to new Python buffer" })
     end,
   },
 
