@@ -257,37 +257,88 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     # Install Zig 0.16 (latest from master builds)
     if ! command_exists zig; then
         echo "⚡ Installing Zig 0.16 (latest master build)..."
+
+        # Determine architecture key for JSON index
+        ARCH=$(uname -m)
+        case "$ARCH" in
+            x86_64) ZIG_ARCH="x86_64" ;;
+            aarch64|arm64) ZIG_ARCH="aarch64" ;;
+            *) ZIG_ARCH="x86_64" ;;
+        esac
+
         case $OS in
             linux|debian|fedora|arch)
-                # Fetch the latest 0.16.0-dev build
-                echo "Fetching latest Zig 0.16 master build..."
-
-                # Get the download page and extract the latest 0.16 tarball URL
-                ZIG_URL=$(curl -sL https://ziglang.org/download/ | grep -oP 'https://ziglang.org/builds/zig-linux-x86_64-0\.16\.0-dev\.[0-9]+\+[a-f0-9]+\.tar\.xz' | head -n1)
-
-                if [ -z "$ZIG_URL" ]; then
-                    echo "Could not find Zig 0.16 build, falling back to latest stable..."
-                    ZIG_URL="https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz"
-                fi
-
-                echo "Downloading from: $ZIG_URL"
-                wget -q "$ZIG_URL" -O zig.tar.xz
-
-                # Extract version from filename for directory naming
-                ZIG_DIR=$(basename "$ZIG_URL" .tar.xz)
-
-                sudo rm -rf /usr/local/zig-linux-x86_64-*
-                sudo tar -C /usr/local -xJf zig.tar.xz
-                sudo ln -sf "/usr/local/${ZIG_DIR}/zig" /usr/local/bin/zig
-                rm zig.tar.xz
-
-                echo "Installed: $(zig version)"
+                ZIG_PLATFORM="${ZIG_ARCH}-linux"
                 ;;
             macos)
-                # macOS: use master builds
-                brew install zig --HEAD || brew install zig
+                ZIG_PLATFORM="${ZIG_ARCH}-macos"
                 ;;
         esac
+
+        echo "Fetching latest Zig master build for ${ZIG_PLATFORM}..."
+
+        # Get URL and shasum from official JSON index (master is first entry)
+        ZIG_JSON=$(curl -sL https://ziglang.org/download/index.json | \
+            tr -d '\n ' | \
+            grep -o "\"${ZIG_PLATFORM}\":{[^}]*}" | head -1)
+        ZIG_URL=$(echo "$ZIG_JSON" | grep -o '"tarball":"[^"]*"' | cut -d'"' -f4)
+        ZIG_SHA=$(echo "$ZIG_JSON" | grep -o '"shasum":"[^"]*"' | cut -d'"' -f4)
+
+        if [ -z "$ZIG_URL" ]; then
+            echo "Could not find Zig master build, falling back to brew..."
+            if [ "$OS" = "macos" ]; then
+                brew install zig
+            fi
+        else
+            echo "Downloading from: $ZIG_URL"
+            curl -sL "$ZIG_URL" -o zig.tar.xz
+
+            # Verify SHA256 checksum
+            echo "Verifying checksum..."
+            if command_exists shasum; then
+                ACTUAL_SHA=$(shasum -a 256 zig.tar.xz | cut -d' ' -f1)
+            else
+                ACTUAL_SHA=$(sha256sum zig.tar.xz | cut -d' ' -f1)
+            fi
+
+            if [ "$ACTUAL_SHA" != "$ZIG_SHA" ]; then
+                echo "❌ Checksum verification failed!"
+                echo "   Expected: $ZIG_SHA"
+                echo "   Got:      $ACTUAL_SHA"
+                rm zig.tar.xz
+                exit 1
+            fi
+            echo "✅ Checksum verified"
+
+            # Extract version from filename for directory naming
+            ZIG_DIR=$(basename "$ZIG_URL" .tar.xz)
+
+            case $OS in
+                linux|debian|fedora|arch)
+                    sudo rm -rf /usr/local/zig-*-linux-*
+                    sudo tar -C /usr/local -xJf zig.tar.xz
+                    sudo ln -sf "/usr/local/${ZIG_DIR}/zig" /usr/local/bin/zig
+                    ;;
+                macos)
+                    rm -rf "$HOME/.local/zig"
+                    mkdir -p "$HOME/.local"
+                    tar -C "$HOME/.local" -xJf zig.tar.xz
+                    mv "$HOME/.local/${ZIG_DIR}" "$HOME/.local/zig"
+
+                    # Add to PATH if not already present
+                    if ! grep -q '$HOME/.local/zig' "$HOME/.zshrc" 2>/dev/null; then
+                        echo 'export PATH="$HOME/.local/zig:$PATH"' >> "$HOME/.zshrc"
+                    fi
+                    if ! grep -q '$HOME/.local/zig' "$HOME/.bashrc" 2>/dev/null; then
+                        echo 'export PATH="$HOME/.local/zig:$PATH"' >> "$HOME/.bashrc"
+                    fi
+                    export PATH="$HOME/.local/zig:$PATH"
+                    ;;
+            esac
+
+            rm zig.tar.xz
+            echo "Installed: $(zig version)"
+        fi
     fi
 fi
 
