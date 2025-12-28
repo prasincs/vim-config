@@ -207,7 +207,12 @@ nvim --headless -c "TSInstall rust go zig lua vim vimdoc" -c "sleep 10" -c "qall
 echo ""
 echo "📦 Optional: Install language toolchains"
 echo "Would you like to install Rust, Go, and Zig? (y/N)"
-read -r response
+if [ -t 0 ]; then
+    read -r response
+else
+    # When piped (e.g., curl | bash), read from terminal directly
+    read -r response </dev/tty 2>/dev/null || response=""
+fi
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     # Install Rust (latest stable via rustup)
     if ! command_exists rustc; then
