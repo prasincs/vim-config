@@ -74,8 +74,36 @@ require("lazy").setup({
         { "<leader>m", desc = "Make/Build" },
         { "<leader>t", desc = "Test" },
         { "<leader>q", desc = "Quickfix" },
+        { "<leader>?", desc = "Ask how to..." },
       },
     },
+    config = function(_, opts)
+      local wk = require("which-key")
+      wk.setup(opts)
+
+      -- Helper to ask Claude how to do something
+      vim.keymap.set("n", "<leader>?", function()
+        vim.ui.input({ prompt = "What do you want to do? " }, function(query)
+          if not query or query == "" then return end
+
+          -- Get all keymaps with descriptions
+          local keymaps = {}
+          for _, map in ipairs(vim.api.nvim_get_keymap("n")) do
+            if map.desc and map.lhs:match("^%s") then  -- leader maps
+              table.insert(keymaps, map.lhs:gsub(" ", "<leader>") .. " → " .. map.desc)
+            end
+          end
+
+          -- Create prompt with context
+          local context = "Available keymaps:\n" .. table.concat(keymaps, "\n") .. "\n\n"
+          local prompt = context .. "How do I: " .. query .. "\n\nGive a brief answer with the keymap or command to use."
+
+          -- Copy to clipboard and notify
+          vim.fn.setreg("+", prompt)
+          vim.notify("Query copied! Open Claude (<leader>ac) and paste.", vim.log.levels.INFO)
+        end)
+      end, { desc = "Ask how to do something" })
+    end,
   },
 
   -- LSP Configuration
