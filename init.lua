@@ -534,17 +534,30 @@ require("lazy").setup({
   {
     "coder/claudecode.nvim",
     dependencies = { "folke/snacks.nvim" },
-    opts = {
-      terminal_cmd = vim.fn.expand("~/.claude/local/claude"),
-    },
-    keys = {
-      { "<leader>ac", "<cmd>ClaudeCode<cr>", desc = "AI: Toggle Claude" },
-      { "<leader>af", "<cmd>ClaudeCodeFocus<cr>", desc = "AI: Focus Claude" },
-      { "<leader>as", "<cmd>ClaudeCodeSend<cr>", mode = "v", desc = "AI: Send to Claude" },
-      { "<leader>ab", "<cmd>ClaudeCodeAdd %<cr>", desc = "AI: Add buffer" },
-      { "<leader>aa", "<cmd>ClaudeCodeDiffAccept<cr>", desc = "AI: Accept diff" },
-      { "<leader>ad", "<cmd>ClaudeCodeDiffDeny<cr>", desc = "AI: Reject diff" },
-    },
+    event = "VeryLazy",  -- Load early but not blocking
+    config = function()
+      require("claudecode").setup({
+        terminal_cmd = vim.fn.expand("~/.claude/local/claude"),
+      })
+
+      -- Keymaps
+      vim.keymap.set("n", "<leader>ac", "<cmd>ClaudeCode<cr>", { desc = "AI: Toggle Claude" })
+      vim.keymap.set("n", "<leader>af", "<cmd>ClaudeCodeFocus<cr>", { desc = "AI: Focus Claude" })
+      vim.keymap.set("v", "<leader>as", "<cmd>ClaudeCodeSend<cr>", { desc = "AI: Send to Claude" })
+      vim.keymap.set("n", "<leader>ab", "<cmd>ClaudeCodeAdd %<cr>", { desc = "AI: Add buffer" })
+      vim.keymap.set("n", "<leader>aa", "<cmd>ClaudeCodeDiffAccept<cr>", { desc = "AI: Accept diff" })
+      vim.keymap.set("n", "<leader>ad", "<cmd>ClaudeCodeDiffDeny<cr>", { desc = "AI: Reject diff" })
+
+      -- Status check command
+      vim.api.nvim_create_user_command("ClaudeStatus", function()
+        local ok, claude = pcall(require, "claudecode")
+        if ok and claude.status then
+          vim.notify("Claude: " .. (claude.status() or "unknown"), vim.log.levels.INFO)
+        else
+          vim.notify("Claude: plugin loaded, checking connection...", vim.log.levels.INFO)
+        end
+      end, { desc = "Check Claude connection status" })
+    end,
   },
 
   -- Simple IPython terminal toggle (just works, no setup needed)
