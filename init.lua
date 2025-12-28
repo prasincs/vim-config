@@ -109,9 +109,10 @@ require("lazy").setup({
         end
       end, { desc = "Help: Show all keymaps" })
 
-      -- Persistent keymap helper (stays open while you type)
+      -- Contextual keymap helper (mode & filetype aware)
       local helper_win = nil
       local helper_buf = nil
+      local helper_active = false
 
       local function close_helper()
         if helper_win and vim.api.nvim_win_is_valid(helper_win) then
@@ -119,19 +120,42 @@ require("lazy").setup({
         end
         helper_win = nil
         helper_buf = nil
+        helper_active = false
       end
 
-      local function open_helper()
-        if helper_win and vim.api.nvim_win_is_valid(helper_win) then
-          close_helper()
-          return
+      local function update_helper()
+        if not helper_active then return end
+
+        local mode = vim.fn.mode()
+        local ft = vim.bo.filetype
+        local mode_name = ({ n = "NORMAL", v = "VISUAL", V = "V-LINE", ["\22"] = "V-BLOCK", i = "INSERT" })[mode] or mode:upper()
+
+        -- Determine which keymaps to show based on mode
+        local keymap_mode = "n"
+        if mode == "v" or mode == "V" or mode == "\22" then
+          keymap_mode = "v"
         end
 
+        -- Filetype to category mapping
+        local ft_categories = {
+          python = { "Python" },
+          go = { "Go" },
+          rust = { "Rust" },
+          zig = { "Zig" },
+          markdown = { "Markdown", "Media", "Writing" },
+        }
+        local relevant_cats = ft_categories[ft] or {}
+
         -- Collect keymaps
-        local lines = { "═══ KEYMAPS (press again to close) ═══", "" }
+        local lines = {
+          "┌─ " .. mode_name .. " │ " .. (ft ~= "" and ft or "no ft") .. " ─┐",
+          "",
+        }
+
         local categories = {}
 
-        for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
+        -- Global keymaps
+        for _, m in ipairs(vim.api.nvim_get_keymap(keymap_mode)) do
           if m.desc and m.lhs:match("^ ") then
             local cat = m.desc:match("^([^:]+):") or "Other"
             categories[cat] = categories[cat] or {}
@@ -140,41 +164,93 @@ require("lazy").setup({
           end
         end
 
-        for cat, maps in pairs(categories) do
-          table.insert(lines, "┌─ " .. cat .. " ─┐")
-          for _, m in ipairs(maps) do
-            table.insert(lines, "│ " .. m)
+        -- Buffer-local keymaps
+        for _, m in ipairs(vim.api.nvim_buf_get_keymap(0, keymap_mode)) do
+          if m.desc and m.lhs:match("^ ") then
+            local cat = m.desc:match("^([^:]+):") or "Buffer"
+            categories[cat] = categories[cat] or {}
+            local key = m.lhs:gsub(" ", "␣")
+            table.insert(categories[cat], key .. " → " .. m.desc:gsub("^[^:]+: ", "") .. " ⋆")
           end
-          table.insert(lines, "")
         end
 
-        -- Create buffer
-        helper_buf = vim.api.nvim_create_buf(false, true)
+        -- Show relevant categories first, then others
+        local shown = {}
+        for _, cat in ipairs(relevant_cats) do
+          if categories[cat] then
+            table.insert(lines, "▸ " .. cat)
+            for _, m in ipairs(categories[cat]) do
+              table.insert(lines, "  " .. m)
+            end
+            table.insert(lines, "")
+            shown[cat] = true
+          end
+        end
+
+        -- Show other categories
+        for cat, maps in pairs(categories) do
+          if not shown[cat] then
+            table.insert(lines, "▸ " .. cat)
+            for _, m in ipairs(maps) do
+              table.insert(lines, "  " .. m)
+            end
+            table.insert(lines, "")
+          end
+        end
+
+        table.insert(lines, "")
+        table.insert(lines, "␣K to close │ ⋆ = buffer-local")
+
+        -- Update or create buffer
+        if not helper_buf or not vim.api.nvim_buf_is_valid(helper_buf) then
+          helper_buf = vim.api.nvim_create_buf(false, true)
+        end
+        vim.api.nvim_buf_set_option(helper_buf, "modifiable", true)
         vim.api.nvim_buf_set_lines(helper_buf, 0, -1, false, lines)
         vim.api.nvim_buf_set_option(helper_buf, "modifiable", false)
 
-        -- Create floating window on the right
-        local width = 45
+        -- Create or update window
+        local width = 42
         local height = math.min(#lines, vim.o.lines - 4)
-        helper_win = vim.api.nvim_open_win(helper_buf, false, {
-          relative = "editor",
-          row = 1,
-          col = vim.o.columns - width - 2,
-          width = width,
-          height = height,
-          style = "minimal",
-          border = "rounded",
-          title = " Keymaps ",
-          title_pos = "center",
-        })
 
-        -- Style
-        vim.api.nvim_win_set_option(helper_win, "winblend", 10)
-        vim.api.nvim_win_set_option(helper_win, "winhighlight", "Normal:NormalFloat")
+        if not helper_win or not vim.api.nvim_win_is_valid(helper_win) then
+          helper_win = vim.api.nvim_open_win(helper_buf, false, {
+            relative = "editor",
+            row = 1,
+            col = vim.o.columns - width - 2,
+            width = width,
+            height = height,
+            style = "minimal",
+            border = "rounded",
+            title = " Keys ",
+            title_pos = "center",
+          })
+          vim.api.nvim_win_set_option(helper_win, "winblend", 15)
+          vim.api.nvim_win_set_option(helper_win, "winhighlight", "Normal:NormalFloat")
+        else
+          vim.api.nvim_win_set_config(helper_win, { height = height })
+        end
       end
 
-      vim.api.nvim_create_user_command("KeymapHelper", open_helper, { desc = "Toggle persistent keymap helper" })
-      vim.keymap.set("n", "<leader>K", open_helper, { desc = "Help: Toggle keymap helper" })
+      local function toggle_helper()
+        if helper_active then
+          close_helper()
+        else
+          helper_active = true
+          update_helper()
+          -- Auto-update on mode/buffer change
+          local group = vim.api.nvim_create_augroup("KeymapHelper", { clear = true })
+          vim.api.nvim_create_autocmd({ "ModeChanged", "BufEnter", "FileType" }, {
+            group = group,
+            callback = function()
+              vim.defer_fn(update_helper, 50)
+            end,
+          })
+        end
+      end
+
+      vim.api.nvim_create_user_command("KeymapHelper", toggle_helper, { desc = "Toggle contextual keymap helper" })
+      vim.keymap.set({ "n", "v" }, "<leader>K", toggle_helper, { desc = "Help: Toggle keymap helper" })
 
       -- Auto-generate group names from "Category: action" description pattern
       -- This runs after all plugins load, so it sees all keymaps
