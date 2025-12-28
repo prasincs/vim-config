@@ -1,4 +1,11 @@
 -- Neovim configuration with Zig, Rust, Go, and Python LSP support
+
+-- Python provider for molten-nvim (uses venv created by bootstrap)
+local nvim_venv = vim.fn.stdpath("data") .. "/python-venv/bin/python"
+if vim.fn.filereadable(nvim_venv) == 1 then
+  vim.g.python3_host_prog = nvim_venv
+end
+
 -- Bootstrap lazy.nvim plugin manager
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
@@ -358,45 +365,51 @@ require("lazy").setup({
     },
   },
 
-  -- Interactive REPL for Python/IPython
+  -- Jupyter-style REPL with inline output (plots, images, dataframes)
   {
-    "Vigemus/iron.nvim",
-    config = function()
-      local iron = require("iron.core")
-      local view = require("iron.view")
-      local common = require("iron.fts.common")
-
-      iron.setup({
-        config = {
-          scratch_repl = true,
-          repl_definition = {
-            python = {
-              command = { "ipython", "--no-autoindent" },
-              format = common.bracketed_paste_python,
-              block_dividers = { "# %%", "#%%" },
-            },
-          },
-          repl_open_cmd = view.split.vertical.botright(80),
-        },
-        highlight = {
-          italic = true,
-        },
-        ignore_blank_lines = true,
-      })
-
-      -- Set up keymaps using iron commands
-      vim.keymap.set("n", "<leader>pi", "<cmd>IronRepl<cr>", { desc = "Iron: Open REPL" })
-      vim.keymap.set("n", "<leader>pr", "<cmd>IronRestart<cr>", { desc = "Iron: Restart REPL" })
-      vim.keymap.set("n", "<leader>ph", "<cmd>IronHide<cr>", { desc = "Iron: Hide REPL" })
-      vim.keymap.set("n", "<leader>pl", function() iron.send_line() end, { desc = "Iron: Send line" })
-      vim.keymap.set("v", "<leader>ps", function() iron.visual_send() end, { desc = "Iron: Send selection" })
-      vim.keymap.set("n", "<leader>pp", function() iron.send_paragraph() end, { desc = "Iron: Send paragraph" })
-      vim.keymap.set("n", "<leader>pb", function() iron.send_code_block() end, { desc = "Iron: Send code block" })
-      vim.keymap.set("n", "<leader>pn", function() iron.send_code_block_and_move() end, { desc = "Iron: Send block & move" })
-      vim.keymap.set("n", "<leader>pF", function() iron.send_file() end, { desc = "Iron: Send file" })
-      vim.keymap.set("n", "<leader>px", function() iron.send(nil, string.char(03)) end, { desc = "Iron: Interrupt" })
-      vim.keymap.set("n", "<leader>pq", "<cmd>IronHide<cr>", { desc = "Iron: Close REPL" })
+    "benlubas/molten-nvim",
+    version = "^1.0.0",
+    dependencies = { "3rd/image.nvim" },
+    build = ":UpdateRemotePlugins",
+    init = function()
+      vim.g.molten_image_provider = "image.nvim"
+      vim.g.molten_output_win_max_height = 20
+      vim.g.molten_auto_open_output = true
+      vim.g.molten_virt_text_output = true
+      vim.g.molten_virt_lines_off_by_1 = true
     end,
+    config = function()
+      -- Keymaps for molten
+      vim.keymap.set("n", "<leader>pi", ":MoltenInit<CR>", { desc = "Molten: Init kernel" })
+      vim.keymap.set("n", "<leader>pl", ":MoltenEvaluateLine<CR>", { desc = "Molten: Eval line" })
+      vim.keymap.set("v", "<leader>ps", ":<C-u>MoltenEvaluateVisual<CR>gv", { desc = "Molten: Eval selection" })
+      vim.keymap.set("n", "<leader>pb", ":MoltenEvaluateOperator<CR>", { desc = "Molten: Eval operator" })
+      vim.keymap.set("n", "<leader>pr", ":MoltenReevaluateCell<CR>", { desc = "Molten: Re-eval cell" })
+      vim.keymap.set("n", "<leader>pd", ":MoltenDelete<CR>", { desc = "Molten: Delete cell" })
+      vim.keymap.set("n", "<leader>po", ":MoltenShowOutput<CR>", { desc = "Molten: Show output" })
+      vim.keymap.set("n", "<leader>ph", ":MoltenHideOutput<CR>", { desc = "Molten: Hide output" })
+      vim.keymap.set("n", "<leader>px", ":MoltenInterrupt<CR>", { desc = "Molten: Interrupt" })
+
+      -- Run cell and move to next (for # %% workflow)
+      vim.keymap.set("n", "<leader>pn", function()
+        vim.cmd("MoltenReevaluateCell")
+        vim.fn.search("^# %%", "W")
+      end, { desc = "Molten: Eval cell & next" })
+    end,
+  },
+
+  -- Image rendering in terminal (for molten plots)
+  {
+    "3rd/image.nvim",
+    opts = {
+      backend = "kitty",  -- or "ueberzug" for X11, "iterm" for iTerm2
+      max_width = 100,
+      max_height = 20,
+      max_height_window_percentage = 50,
+      integrations = {
+        markdown = { enabled = false },
+      },
+    },
   },
 
   -- Jupyter notebook editing (converts .ipynb to Python with cell markers)

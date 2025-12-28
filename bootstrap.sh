@@ -437,10 +437,22 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         uv python install 3.12 2>/dev/null || true
         echo "   ✅ Python installed"
 
-        echo "   Installing Python tools (ipython, basedpyright)..."
+        echo "   Installing Python tools..."
         uv tool install ipython 2>/dev/null || uv tool upgrade ipython 2>/dev/null || true
         uv tool install basedpyright 2>/dev/null || uv tool upgrade basedpyright 2>/dev/null || true
         echo "   ✅ Python tools installed"
+
+        echo "   Installing Jupyter kernel for molten-nvim..."
+        # Create a venv for neovim python support and jupyter
+        NVIM_VENV="$HOME/.local/share/nvim/python-venv"
+        if [ ! -d "$NVIM_VENV" ]; then
+            uv venv "$NVIM_VENV"
+        fi
+        # Install required packages for molten-nvim
+        uv pip install --python "$NVIM_VENV/bin/python" pynvim jupyter_client ipykernel cairosvg pnglatex plotly kaleido 2>/dev/null || true
+        # Register the kernel
+        "$NVIM_VENV/bin/python" -m ipykernel install --user --name=python3 2>/dev/null || true
+        echo "   ✅ Jupyter kernel installed"
     fi
 fi
 
@@ -617,7 +629,7 @@ echo "    - Zig: <Space>zf"
 echo "    - Rust: <Space>rf"
 echo "    - Go: <Space>gf"
 echo "    - Python: <Space>pf"
-echo "  • Python REPL: <Space>pi (toggle IPython)"
+echo "  • Python/Jupyter: <Space>pi (init kernel), <Space>pl (eval line)"
 echo "  • File explorer: <Space>e"
 echo "  • Find files: <Space>ff"
 echo "  • Live grep: <Space>fg"
