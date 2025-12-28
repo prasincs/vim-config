@@ -130,15 +130,21 @@ if [[ "$XDG_SESSION_TYPE" == "wayland" ]] || [[ -n "$SOMMELIER_VERSION" ]]; then
     esac
 fi
 
-# Backup existing config if present
-if [ -d "$HOME/.config/nvim" ]; then
-    echo "📂 Backing up existing Neovim config..."
-    mv "$HOME/.config/nvim" "$HOME/.config/nvim.backup.$(date +%Y%m%d_%H%M%S)"
+# Clone or update the configuration
+if [ -d "$HOME/.config/nvim/.git" ]; then
+    echo "📥 Updating existing Neovim configuration..."
+    git -C "$HOME/.config/nvim" fetch origin
+    git -C "$HOME/.config/nvim" reset --hard origin/${GITHUB_BRANCH:-master}
+    echo "✅ Configuration updated"
+else
+    # Backup existing config if present (but not a git repo)
+    if [ -d "$HOME/.config/nvim" ]; then
+        echo "📂 Backing up existing Neovim config..."
+        mv "$HOME/.config/nvim" "$HOME/.config/nvim.backup.$(date +%Y%m%d_%H%M%S)"
+    fi
+    echo "📥 Cloning Neovim configuration..."
+    git clone -b ${GITHUB_BRANCH:-master} https://github.com/${GITHUB_USER:-prasincs}/vim-config.git "$HOME/.config/nvim"
 fi
-
-# Clone the configuration
-echo "📥 Cloning Neovim configuration..."
-git clone -b ${GITHUB_BRANCH:-neovim-2025} https://github.com/${GITHUB_USER:-prasincs}/vim-config.git "$HOME/.config/nvim"
 
 # Ensure init.lua exists at the expected location
 if [ ! -f "$HOME/.config/nvim/init.lua" ]; then
@@ -229,14 +235,36 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         fi
     fi
 
-    # Install Go (latest stable)
-    if ! command_exists go; then
-        echo "🐹 Installing Go (latest stable)..."
+    # Install/upgrade Go (latest stable)
+    echo "🐿️ Checking Go installation..."
+    GO_LATEST=$(curl -sL https://go.dev/VERSION?m=text | head -n1)
+    if command_exists go; then
+        GO_CURRENT=$(go version | grep -o 'go[0-9.]*' | head -1)
+        echo "Current Go: $GO_CURRENT"
+        echo "Latest Go:  $GO_LATEST"
+        if [ "$GO_CURRENT" = "$GO_LATEST" ]; then
+            echo "✅ Go is already up to date"
+        else
+            echo "Upgrading Go..."
+            case $OS in
+                linux|debian|fedora|arch)
+                    GO_VERSION=$(echo "$GO_LATEST" | sed 's/go//')
+                    wget -q "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
+                    sudo rm -rf /usr/local/go
+                    sudo tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
+                    rm "go${GO_VERSION}.linux-amd64.tar.gz"
+                    ;;
+                macos)
+                    brew upgrade go 2>/dev/null || brew install go
+                    ;;
+            esac
+            echo "✅ Upgraded: $(go version)"
+        fi
+    else
+        echo "Installing $GO_LATEST..."
         case $OS in
             linux|debian|fedora|arch)
-                # Fetch the latest stable version from the Go download page
-                GO_VERSION=$(curl -sL https://go.dev/VERSION?m=text | head -n1 | sed 's/go//')
-                echo "Detected latest Go version: $GO_VERSION"
+                GO_VERSION=$(echo "$GO_LATEST" | sed 's/go//')
                 wget -q "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
                 sudo rm -rf /usr/local/go
                 sudo tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
@@ -252,44 +280,59 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
                 brew install go
                 ;;
         esac
+        echo "✅ Installed: $(go version)"
     fi
 
-    # Install Zig 0.16 (latest from master builds)
-    if ! command_exists zig; then
-        echo "⚡ Installing Zig 0.16 (latest master build)..."
+    # Install/upgrade Zig to latest master build
+    echo "⚡ Checking Zig installation..."
 
-        # Determine architecture key for JSON index
-        ARCH=$(uname -m)
-        case "$ARCH" in
-            x86_64) ZIG_ARCH="x86_64" ;;
-            aarch64|arm64) ZIG_ARCH="aarch64" ;;
-            *) ZIG_ARCH="x86_64" ;;
-        esac
+    # Determine architecture key for JSON index
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        x86_64) ZIG_ARCH="x86_64" ;;
+        aarch64|arm64) ZIG_ARCH="aarch64" ;;
+        *) ZIG_ARCH="x86_64" ;;
+    esac
 
-        case $OS in
-            linux|debian|fedora|arch)
-                ZIG_PLATFORM="${ZIG_ARCH}-linux"
-                ;;
-            macos)
-                ZIG_PLATFORM="${ZIG_ARCH}-macos"
-                ;;
-        esac
+    case $OS in
+        linux|debian|fedora|arch)
+            ZIG_PLATFORM="${ZIG_ARCH}-linux"
+            ;;
+        macos)
+            ZIG_PLATFORM="${ZIG_ARCH}-macos"
+            ;;
+    esac
 
-        echo "Fetching latest Zig master build for ${ZIG_PLATFORM}..."
+    # Get latest version info from official JSON index (master is first entry)
+    ZIG_INDEX=$(curl -sL https://ziglang.org/download/index.json | tr -d '\n ')
+    ZIG_JSON=$(echo "$ZIG_INDEX" | grep -o "\"${ZIG_PLATFORM}\":{[^}]*}" | head -1)
+    ZIG_URL=$(echo "$ZIG_JSON" | grep -o '"tarball":"[^"]*"' | cut -d'"' -f4)
+    ZIG_SHA=$(echo "$ZIG_JSON" | grep -o '"shasum":"[^"]*"' | cut -d'"' -f4)
+    ZIG_LATEST=$(echo "$ZIG_INDEX" | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4)
 
-        # Get URL and shasum from official JSON index (master is first entry)
-        ZIG_JSON=$(curl -sL https://ziglang.org/download/index.json | \
-            tr -d '\n ' | \
-            grep -o "\"${ZIG_PLATFORM}\":{[^}]*}" | head -1)
-        ZIG_URL=$(echo "$ZIG_JSON" | grep -o '"tarball":"[^"]*"' | cut -d'"' -f4)
-        ZIG_SHA=$(echo "$ZIG_JSON" | grep -o '"shasum":"[^"]*"' | cut -d'"' -f4)
-
-        if [ -z "$ZIG_URL" ]; then
-            echo "Could not find Zig master build, falling back to brew..."
-            if [ "$OS" = "macos" ]; then
-                brew install zig
+    if [ -z "$ZIG_URL" ]; then
+        echo "Could not find Zig master build, falling back to brew..."
+        if [ "$OS" = "macos" ]; then
+            brew install zig
+        fi
+    else
+        # Check if upgrade is needed
+        NEED_INSTALL=1
+        if command_exists zig; then
+            CURRENT_ZIG=$(zig version 2>/dev/null || echo "unknown")
+            echo "Current Zig: $CURRENT_ZIG"
+            echo "Latest Zig:  $ZIG_LATEST"
+            if [ "$CURRENT_ZIG" = "$ZIG_LATEST" ]; then
+                echo "✅ Zig is already up to date"
+                NEED_INSTALL=0
+            else
+                echo "Upgrading Zig to $ZIG_LATEST..."
             fi
         else
+            echo "Installing Zig $ZIG_LATEST..."
+        fi
+
+        if [ "$NEED_INSTALL" = "1" ]; then
             echo "Downloading from: $ZIG_URL"
             curl -sL "$ZIG_URL" -o zig.tar.xz
 
@@ -337,7 +380,7 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
             esac
 
             rm zig.tar.xz
-            echo "Installed: $(zig version)"
+            echo "✅ Installed: $(zig version)"
         fi
     fi
 fi
