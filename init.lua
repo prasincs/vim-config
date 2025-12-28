@@ -1,4 +1,5 @@
--- Neovim configuration with Zig LSP support
+-- Neovim configuration with Zig, Rust, Go, and Python LSP support
+
 -- Bootstrap lazy.nvim plugin manager
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
@@ -52,6 +53,381 @@ vim.g.maplocalleader = " "
 
 -- Plugin setup
 require("lazy").setup({
+  -- Which-key: shows available keymaps as you type
+  {
+    "folke/which-key.nvim",
+    event = "VeryLazy",
+    config = function()
+      local wk = require("which-key")
+      wk.setup({
+        preset = "helix",
+        delay = 200,  -- Show quickly
+        icons = { mappings = false },
+        win = {
+          border = "rounded",
+          padding = { 1, 2 },
+          title = true,
+          title_pos = "center",
+        },
+        -- Show pressed keys in cmdline
+        show_keys = true,
+        -- Don't hide immediately after key press
+        triggers = {
+          { "<auto>", mode = "nxso" },
+        },
+      })
+
+      -- Learning mode: show which-key and echo pressed keys
+      local learning_mode = false
+      vim.api.nvim_create_user_command("LearnKeys", function()
+        learning_mode = not learning_mode
+        if learning_mode then
+          vim.o.showcmd = true
+          vim.o.showcmdloc = "statusline"
+          wk.setup({ delay = 0 })  -- Show immediately
+          vim.notify("Learning mode ON - which-key shows immediately", vim.log.levels.INFO)
+        else
+          wk.setup({ delay = 200 })
+          vim.notify("Learning mode OFF", vim.log.levels.INFO)
+        end
+      end, { desc = "Toggle key learning mode" })
+
+      vim.keymap.set("n", "<leader>L", "<cmd>LearnKeys<cr>", { desc = "Help: Toggle learning mode" })
+
+      -- Show which-key popup in visual mode
+      vim.keymap.set("v", "<leader>", function()
+        wk.show({ mode = "v", keys = "<leader>" })
+      end, { desc = "Show visual mode keymaps" })
+
+      -- Toggle which-key popup manually (works in any mode)
+      vim.keymap.set({ "n", "v" }, "<C-/>", function()
+        local mode = vim.fn.mode()
+        if mode == "v" or mode == "V" or mode == "\22" then  -- visual modes
+          wk.show({ mode = "v", keys = "" })
+        else
+          wk.show({ mode = "n", keys = "" })
+        end
+      end, { desc = "Help: Show all keymaps" })
+
+      -- Contextual keymap helper (mode & filetype aware)
+      local helper_win = nil
+      local helper_buf = nil
+      local helper_active = false
+
+      local function close_helper()
+        if helper_win and vim.api.nvim_win_is_valid(helper_win) then
+          vim.api.nvim_win_close(helper_win, true)
+        end
+        helper_win = nil
+        helper_buf = nil
+        helper_active = false
+      end
+
+      local function update_helper()
+        if not helper_active then return end
+
+        local mode = vim.fn.mode()
+        local ft = vim.bo.filetype
+        local mode_name = ({ n = "NORMAL", v = "VISUAL", V = "V-LINE", ["\22"] = "V-BLOCK", i = "INSERT" })[mode] or mode:upper()
+
+        -- Determine which keymaps to show based on mode
+        local keymap_mode = "n"
+        if mode == "v" or mode == "V" or mode == "\22" then
+          keymap_mode = "v"
+        end
+
+        -- Filetype to category mapping
+        local ft_categories = {
+          python = { "Python" },
+          go = { "Go" },
+          rust = { "Rust" },
+          zig = { "Zig" },
+          markdown = { "Markdown", "Media", "Writing" },
+        }
+        local relevant_cats = ft_categories[ft] or {}
+
+        -- Collect keymaps
+        local lines = {
+          "┌─ " .. mode_name .. " │ " .. (ft ~= "" and ft or "no ft") .. " ─┐",
+          "",
+        }
+
+        local categories = {}
+
+        -- Global keymaps
+        for _, m in ipairs(vim.api.nvim_get_keymap(keymap_mode)) do
+          if m.desc and m.lhs:match("^ ") then
+            local cat = m.desc:match("^([^:]+):") or "Other"
+            categories[cat] = categories[cat] or {}
+            local key = m.lhs:gsub(" ", "␣")
+            table.insert(categories[cat], key .. " → " .. m.desc:gsub("^[^:]+: ", ""))
+          end
+        end
+
+        -- Buffer-local keymaps
+        for _, m in ipairs(vim.api.nvim_buf_get_keymap(0, keymap_mode)) do
+          if m.desc and m.lhs:match("^ ") then
+            local cat = m.desc:match("^([^:]+):") or "Buffer"
+            categories[cat] = categories[cat] or {}
+            local key = m.lhs:gsub(" ", "␣")
+            table.insert(categories[cat], key .. " → " .. m.desc:gsub("^[^:]+: ", "") .. " ⋆")
+          end
+        end
+
+        -- Show relevant categories first, then others
+        local shown = {}
+        for _, cat in ipairs(relevant_cats) do
+          if categories[cat] then
+            table.insert(lines, "▸ " .. cat)
+            for _, m in ipairs(categories[cat]) do
+              table.insert(lines, "  " .. m)
+            end
+            table.insert(lines, "")
+            shown[cat] = true
+          end
+        end
+
+        -- Show other categories
+        for cat, maps in pairs(categories) do
+          if not shown[cat] then
+            table.insert(lines, "▸ " .. cat)
+            for _, m in ipairs(maps) do
+              table.insert(lines, "  " .. m)
+            end
+            table.insert(lines, "")
+          end
+        end
+
+        table.insert(lines, "")
+        table.insert(lines, "␣K to close │ ⋆ = buffer-local")
+
+        -- Update or create buffer
+        if not helper_buf or not vim.api.nvim_buf_is_valid(helper_buf) then
+          helper_buf = vim.api.nvim_create_buf(false, true)
+        end
+        vim.api.nvim_buf_set_option(helper_buf, "modifiable", true)
+        vim.api.nvim_buf_set_lines(helper_buf, 0, -1, false, lines)
+        vim.api.nvim_buf_set_option(helper_buf, "modifiable", false)
+
+        -- Create or update window
+        local width = 42
+        local height = math.min(#lines, vim.o.lines - 4)
+
+        if not helper_win or not vim.api.nvim_win_is_valid(helper_win) then
+          helper_win = vim.api.nvim_open_win(helper_buf, false, {
+            relative = "editor",
+            row = 1,
+            col = vim.o.columns - width - 2,
+            width = width,
+            height = height,
+            style = "minimal",
+            border = "rounded",
+            title = " Keys ",
+            title_pos = "center",
+          })
+          vim.api.nvim_win_set_option(helper_win, "winblend", 15)
+          vim.api.nvim_win_set_option(helper_win, "winhighlight", "Normal:NormalFloat")
+        else
+          vim.api.nvim_win_set_config(helper_win, { height = height })
+        end
+      end
+
+      local function toggle_helper()
+        if helper_active then
+          close_helper()
+        else
+          helper_active = true
+          update_helper()
+          -- Auto-update on mode/buffer change
+          local group = vim.api.nvim_create_augroup("KeymapHelper", { clear = true })
+          vim.api.nvim_create_autocmd({ "ModeChanged", "BufEnter", "FileType" }, {
+            group = group,
+            callback = function()
+              vim.defer_fn(update_helper, 50)
+            end,
+          })
+        end
+      end
+
+      vim.api.nvim_create_user_command("KeymapHelper", toggle_helper, { desc = "Toggle contextual keymap helper" })
+      vim.keymap.set({ "n", "v" }, "<leader>K", toggle_helper, { desc = "Help: Toggle keymap helper" })
+
+      -- Auto-generate group names from "Category: action" description pattern
+      -- This runs after all plugins load, so it sees all keymaps
+      vim.api.nvim_create_autocmd("User", {
+        pattern = "VeryLazy",
+        callback = function()
+          local groups = {}
+          for _, map in ipairs(vim.api.nvim_get_keymap("n")) do
+            if map.desc and map.lhs:match("^ ") then  -- leader maps start with space
+              local prefix = map.lhs:sub(1, 2)  -- e.g. " p" for <leader>p
+              if not groups[prefix] and #map.lhs > 2 then
+                -- Extract group name from "Category: action" pattern
+                local group_name = map.desc:match("^([^:]+):")
+                if group_name then
+                  groups[prefix] = group_name
+                end
+              end
+            end
+          end
+
+          -- Register groups with which-key
+          local spec = {}
+          for prefix, name in pairs(groups) do
+            table.insert(spec, { "<leader>" .. prefix:sub(2), group = name })
+          end
+          if #spec > 0 then
+            wk.add(spec)
+          end
+        end,
+      })
+
+      -- Show all keymaps with Telescope
+      vim.keymap.set("n", "<leader>?", "<cmd>Telescope keymaps<cr>", { desc = "Help: Search keymaps" })
+
+      -- AI-powered vim tutor
+      vim.api.nvim_create_user_command("Tutor", function()
+        -- Gather all keymaps with descriptions
+        local lines = {
+          "# Neovim Keymaps Reference",
+          "",
+          "Ask me anything about these keymaps or how to do something in Neovim!",
+          "",
+          "## Leader Keymaps (<Space> is leader)",
+          "",
+        }
+
+        -- Collect and sort keymaps by category
+        local categories = {}
+        for _, map in ipairs(vim.api.nvim_get_keymap("n")) do
+          if map.desc and map.lhs:match("^ ") then
+            local cat = map.desc:match("^([^:]+):") or "Other"
+            categories[cat] = categories[cat] or {}
+            local key = map.lhs:gsub(" ", "<leader>")
+            table.insert(categories[cat], "- `" .. key .. "` — " .. map.desc)
+          end
+        end
+
+        -- Add visual mode keymaps
+        for _, map in ipairs(vim.api.nvim_get_keymap("v")) do
+          if map.desc and map.lhs:match("^ ") then
+            local cat = map.desc:match("^([^:]+):") or "Other"
+            categories[cat] = categories[cat] or {}
+            local key = map.lhs:gsub(" ", "<leader>")
+            table.insert(categories[cat], "- `" .. key .. "` (visual) — " .. map.desc)
+          end
+        end
+
+        -- Format by category
+        for cat, maps in pairs(categories) do
+          table.insert(lines, "### " .. cat)
+          for _, m in ipairs(maps) do
+            table.insert(lines, m)
+          end
+          table.insert(lines, "")
+        end
+
+        -- Add comprehensive vim movements
+        table.insert(lines, "## Movements")
+        table.insert(lines, "")
+        table.insert(lines, "### Basic Motion")
+        table.insert(lines, "- `h/j/k/l` — left/down/up/right")
+        table.insert(lines, "- `w/W` — word/WORD forward")
+        table.insert(lines, "- `b/B` — word/WORD backward")
+        table.insert(lines, "- `e/E` — end of word/WORD")
+        table.insert(lines, "- `0/$` — start/end of line")
+        table.insert(lines, "- `^` — first non-blank char")
+        table.insert(lines, "")
+        table.insert(lines, "### Find on Line")
+        table.insert(lines, "- `f{char}` — find char forward")
+        table.insert(lines, "- `F{char}` — find char backward")
+        table.insert(lines, "- `t{char}` — till char forward")
+        table.insert(lines, "- `T{char}` — till char backward")
+        table.insert(lines, "- `;/,` — repeat find forward/backward")
+        table.insert(lines, "")
+        table.insert(lines, "### Jumping")
+        table.insert(lines, "- `gg/G` — top/bottom of file")
+        table.insert(lines, "- `{num}G` — go to line number")
+        table.insert(lines, "- `{/}` — paragraph up/down")
+        table.insert(lines, "- `%` — matching bracket")
+        table.insert(lines, "- `<C-o>/<C-i>` — jump list back/forward")
+        table.insert(lines, "- `<C-d>/<C-u>` — half page down/up")
+        table.insert(lines, "- `zz/zt/zb` — center/top/bottom cursor")
+        table.insert(lines, "")
+        table.insert(lines, "### Search")
+        table.insert(lines, "- `/{pattern}` — search forward")
+        table.insert(lines, "- `?{pattern}` — search backward")
+        table.insert(lines, "- `n/N` — next/previous match")
+        table.insert(lines, "- `*/#` — search word under cursor")
+        table.insert(lines, "- `gd` — go to definition (LSP)")
+        table.insert(lines, "")
+        table.insert(lines, "## Text Objects")
+        table.insert(lines, "")
+        table.insert(lines, "Use with operators: `d`(delete), `c`(change), `y`(yank), `v`(visual)")
+        table.insert(lines, "")
+        table.insert(lines, "### Inner (i) vs Around (a)")
+        table.insert(lines, "- `iw/aw` — inner/around word")
+        table.insert(lines, "- `is/as` — inner/around sentence")
+        table.insert(lines, "- `ip/ap` — inner/around paragraph")
+        table.insert(lines, "")
+        table.insert(lines, "### Delimiters")
+        table.insert(lines, "- `i\"/a\"` — inside/around double quotes")
+        table.insert(lines, "- `i'/a'` — inside/around single quotes")
+        table.insert(lines, "- `i)/a)` or `ib/ab` — inside/around parens")
+        table.insert(lines, "- `i]/a]` — inside/around brackets")
+        table.insert(lines, "- `i}/a}` or `iB/aB` — inside/around braces")
+        table.insert(lines, "- `i>/a>` — inside/around angle brackets")
+        table.insert(lines, "- `it/at` — inside/around HTML tags")
+        table.insert(lines, "")
+        table.insert(lines, "## Efficient Editing Patterns")
+        table.insert(lines, "")
+        table.insert(lines, "### Common Combos")
+        table.insert(lines, "- `ciw` — change word under cursor")
+        table.insert(lines, "- `ci\"` — change inside quotes")
+        table.insert(lines, "- `ca)` — change around parentheses")
+        table.insert(lines, "- `dap` — delete paragraph")
+        table.insert(lines, "- `yiw` — yank word")
+        table.insert(lines, "- `vi{` — select inside braces")
+        table.insert(lines, "")
+        table.insert(lines, "### Repeat & Undo")
+        table.insert(lines, "- `.` — repeat last change")
+        table.insert(lines, "- `u/<C-r>` — undo/redo")
+        table.insert(lines, "- `@:` — repeat last command")
+        table.insert(lines, "")
+        table.insert(lines, "### Registers")
+        table.insert(lines, "- `\"ay` — yank to register a")
+        table.insert(lines, "- `\"ap` — paste from register a")
+        table.insert(lines, "- `\"+y` — yank to system clipboard")
+        table.insert(lines, "- `\"+p` — paste from system clipboard")
+        table.insert(lines, "- `:reg` — show all registers")
+        table.insert(lines, "")
+        table.insert(lines, "### Macros")
+        table.insert(lines, "- `qa` — start recording macro to register a")
+        table.insert(lines, "- `q` — stop recording")
+        table.insert(lines, "- `@a` — play macro from register a")
+        table.insert(lines, "- `@@` — repeat last macro")
+        table.insert(lines, "")
+
+        -- Create buffer with content
+        local buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+        vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
+        vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
+        vim.api.nvim_buf_set_name(buf, "[Tutor]")
+
+        -- Open tutor in a vertical split
+        vim.cmd("vsplit")
+        vim.api.nvim_win_set_buf(0, buf)
+        vim.cmd("wincmd H")  -- Move to far left
+        vim.cmd("vertical resize 60")
+
+        vim.notify("Tutor opened. Press <leader>ac to open Claude and ask questions!", vim.log.levels.INFO)
+      end, { desc = "Open AI-powered Neovim tutor" })
+
+      vim.keymap.set("n", "<leader>h", "<cmd>Tutor<cr>", { desc = "Help: AI Tutor" })
+    end,
+  },
+
   -- LSP Configuration
   {
     "neovim/nvim-lspconfig",
@@ -71,7 +447,9 @@ require("lazy").setup({
       require("mason").setup()
       require("mason-lspconfig").setup({
         ensure_installed = { "rust_analyzer", "gopls" },
-        automatic_installation = true,
+        automatic_installation = {
+          exclude = { "basedpyright" },  -- installed via uv instead
+        },
       })
 
       -- Setup LSP servers using the modern vim.lsp.config API
@@ -87,6 +465,23 @@ require("lazy").setup({
         cmd = { "gopls" },
         filetypes = { "go", "gomod", "gowork", "gotmpl" },
         root_markers = { "go.mod", ".git", "go.work" },
+      }
+
+      -- Python language server (basedpyright - enhanced pyright fork)
+      vim.lsp.config.basedpyright = {
+        cmd = { "basedpyright-langserver", "--stdio" },
+        filetypes = { "python" },
+        root_markers = { "pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "uv.lock", ".git" },
+        settings = {
+          basedpyright = {
+            analysis = {
+              typeCheckingMode = "standard",
+              autoSearchPaths = true,
+              useLibraryCodeForTypes = true,
+              diagnosticMode = "openFilesOnly",
+            },
+          },
+        },
       }
 
       -- LSP keymaps
@@ -125,6 +520,7 @@ require("lazy").setup({
       vim.lsp.enable("zls")
       vim.lsp.enable("rust_analyzer")
       vim.lsp.enable("gopls")
+      vim.lsp.enable("basedpyright")
     end,
   },
 
@@ -191,7 +587,7 @@ require("lazy").setup({
     build = ":TSUpdate",
     main = "nvim-treesitter",
     opts = {
-      ensure_installed = { "zig", "rust", "go", "lua", "vim", "vimdoc", "markdown", "markdown_inline" },
+      ensure_installed = { "zig", "rust", "go", "lua", "vim", "vimdoc", "markdown", "markdown_inline", "python" },
       auto_install = true,
       highlight = { enable = true },
       indent = { enable = true },
@@ -266,7 +662,7 @@ require("lazy").setup({
     "folke/zen-mode.nvim",
     opts = {},
     keys = {
-      { "<leader>z", "<cmd>ZenMode<cr>", desc = "Zen Mode" },
+      { "<leader>z", "<cmd>ZenMode<cr>", desc = "Writing: Zen Mode" },
     },
   },
 
@@ -283,7 +679,7 @@ require("lazy").setup({
     ft = { "markdown" },
     opts = {},
     keys = {
-      { "<leader>mr", "<cmd>RenderMarkdown toggle<cr>", desc = "Toggle markdown rendering" },
+      { "<leader>mr", "<cmd>RenderMarkdown toggle<cr>", desc = "Markdown: Toggle rendering" },
     },
   },
 
@@ -300,10 +696,10 @@ require("lazy").setup({
       filter_kind = false, -- show all symbol types
     },
     keys = {
-      { "<leader>o", "<cmd>AerialToggle<cr>", desc = "Toggle outline" },
-      { "<leader>O", "<cmd>AerialNavToggle<cr>", desc = "Toggle outline nav" },
-      { "{", "<cmd>AerialPrev<cr>", desc = "Previous symbol" },
-      { "}", "<cmd>AerialNext<cr>", desc = "Next symbol" },
+      { "<leader>o", "<cmd>AerialToggle<cr>", desc = "Outline: Toggle" },
+      { "<leader>O", "<cmd>AerialNavToggle<cr>", desc = "Outline: Toggle nav" },
+      { "{", "<cmd>AerialPrev<cr>", desc = "Outline: Previous symbol" },
+      { "}", "<cmd>AerialNext<cr>", desc = "Outline: Next symbol" },
     },
   },
 
@@ -325,17 +721,166 @@ require("lazy").setup({
   {
     "coder/claudecode.nvim",
     dependencies = { "folke/snacks.nvim" },
+    event = "VeryLazy",  -- Load early but not blocking
+    config = function()
+      require("claudecode").setup({
+        terminal_cmd = vim.fn.expand("~/.claude/local/claude"),
+      })
+
+      -- Keymaps
+      vim.keymap.set("n", "<leader>ac", "<cmd>ClaudeCode<cr>", { desc = "AI: Toggle Claude" })
+      vim.keymap.set("n", "<leader>af", "<cmd>ClaudeCodeFocus<cr>", { desc = "AI: Focus Claude" })
+      vim.keymap.set("v", "<leader>as", "<cmd>ClaudeCodeSend<cr>", { desc = "AI: Send to Claude" })
+      vim.keymap.set("n", "<leader>ab", "<cmd>ClaudeCodeAdd %<cr>", { desc = "AI: Add buffer" })
+      vim.keymap.set("n", "<leader>aa", "<cmd>ClaudeCodeDiffAccept<cr>", { desc = "AI: Accept diff" })
+      vim.keymap.set("n", "<leader>ad", "<cmd>ClaudeCodeDiffDeny<cr>", { desc = "AI: Reject diff" })
+
+      -- Status check command
+      vim.api.nvim_create_user_command("ClaudeStatus", function()
+        local ok, claude = pcall(require, "claudecode")
+        if ok and claude.status then
+          vim.notify("Claude: " .. (claude.status() or "unknown"), vim.log.levels.INFO)
+        else
+          vim.notify("Claude: plugin loaded, checking connection...", vim.log.levels.INFO)
+        end
+      end, { desc = "Check Claude connection status" })
+    end,
+  },
+
+  -- Simple IPython terminal toggle (just works, no setup needed)
+  {
+    "akinsho/toggleterm.nvim",
+    version = "*",
+    config = function()
+      require("toggleterm").setup({
+        size = function(term)
+          if term.direction == "horizontal" then
+            return 15
+          elseif term.direction == "vertical" then
+            return vim.o.columns * 0.4
+          end
+        end,
+        open_mapping = [[<c-\>]],
+        direction = "vertical",
+      })
+
+      -- Dedicated IPython terminal
+      local Terminal = require("toggleterm.terminal").Terminal
+      local ipython = Terminal:new({
+        cmd = "ipython",
+        direction = "vertical",
+        hidden = true,
+        on_open = function(term)
+          vim.cmd("startinsert!")
+        end,
+      })
+
+      -- Toggle IPython REPL
+      vim.keymap.set("n", "<leader>pi", function() ipython:toggle() end, { desc = "Python: Toggle IPython" })
+
+      -- Send current line to IPython
+      vim.keymap.set("n", "<leader>pl", function()
+        local line = vim.api.nvim_get_current_line()
+        ipython:send(line, true)
+      end, { desc = "Python: Send line" })
+
+      -- Send visual selection to IPython
+      vim.keymap.set("v", "<leader>ps", function()
+        -- Get visual selection
+        local start_pos = vim.fn.getpos("'<")
+        local end_pos = vim.fn.getpos("'>")
+        local lines = vim.api.nvim_buf_get_lines(0, start_pos[2] - 1, end_pos[2], false)
+        if #lines > 0 then
+          -- Adjust first and last line for visual selection
+          lines[#lines] = string.sub(lines[#lines], 1, end_pos[3])
+          lines[1] = string.sub(lines[1], start_pos[3])
+        end
+        ipython:send(lines, true)
+      end, { desc = "Python: Send selection" })
+
+      -- Send paragraph to IPython
+      vim.keymap.set("n", "<leader>pp", function()
+        local start_line = vim.fn.search("^\\s*$", "bnW") + 1
+        local end_line = vim.fn.search("^\\s*$", "nW") - 1
+        if end_line < start_line then
+          end_line = vim.fn.line("$")
+        end
+        local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+        ipython:send(lines, true)
+      end, { desc = "Python: Send paragraph" })
+
+      -- Send code block (# %% cell) to IPython
+      vim.keymap.set("n", "<leader>pb", function()
+        local current_line = vim.fn.line(".")
+        local start_line = vim.fn.search("^# %%", "bnW")
+        if start_line == 0 then start_line = 1 else start_line = start_line + 1 end
+        local end_line = vim.fn.search("^# %%", "nW") - 1
+        if end_line < start_line then end_line = vim.fn.line("$") end
+        local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+        ipython:send(lines, true)
+      end, { desc = "Python: Send code block" })
+
+      -- Send block and move to next
+      vim.keymap.set("n", "<leader>pn", function()
+        vim.cmd("normal \\<leader>pb")
+        vim.fn.search("^# %%", "W")
+      end, { desc = "Python: Send block & next" })
+
+      -- Write selected lines from terminal to new Python buffer
+      vim.keymap.set("v", "<leader>pw", function()
+        -- Yank selection
+        vim.cmd('normal! "zy')
+        local content = vim.fn.getreg("z")
+
+        -- Clean up IPython prompts (In [1]:, Out[1]:, ...:, etc.)
+        local lines = {}
+        for line in content:gmatch("[^\n]+") do
+          -- Remove IPython input prompts
+          line = line:gsub("^In %[%d+%]: ", "")
+          -- Remove continuation prompts
+          line = line:gsub("^   %.%.%.: ", "")
+          -- Skip output prompts and their content
+          if not line:match("^Out%[%d+%]:") then
+            table.insert(lines, line)
+          end
+        end
+
+        -- Create new buffer with content
+        vim.cmd("enew")
+        vim.bo.filetype = "python"
+        vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+      end, { desc = "Python: Write to new buffer" })
+    end,
+  },
+
+  -- Image rendering in terminal (for markdown images)
+  {
+    "3rd/image.nvim",
     opts = {
-      terminal_cmd = vim.fn.expand("~/.claude/local/claude"),
+      backend = "kitty",  -- or "ueberzug" for X11, "iterm" for iTerm2
+      max_width = 100,
+      max_height = 20,
+      max_height_window_percentage = 50,
+      integrations = {
+        markdown = {
+          enabled = true,
+          clear_in_insert_mode = true,
+          only_render_image_at_cursor = false,
+        },
+      },
     },
-    keys = {
-      { "<leader>ac", "<cmd>ClaudeCode<cr>", desc = "Toggle Claude" },
-      { "<leader>af", "<cmd>ClaudeCodeFocus<cr>", desc = "Focus Claude" },
-      { "<leader>as", "<cmd>ClaudeCodeSend<cr>", mode = "v", desc = "Send to Claude" },
-      { "<leader>ab", "<cmd>ClaudeCodeAdd %<cr>", desc = "Add current buffer" },
-      { "<leader>aa", "<cmd>ClaudeCodeDiffAccept<cr>", desc = "Accept diff" },
-      { "<leader>ad", "<cmd>ClaudeCodeDiffDeny<cr>", desc = "Reject diff" },
-    },
+  },
+
+  -- Jupyter notebook editing (converts .ipynb to Python with cell markers)
+  {
+    "GCBallesteros/jupytext.nvim",
+    config = function()
+      require("jupytext").setup({
+        style = "percent",  -- Use # %% cell markers
+        output_extension = "auto",
+        force_ft = nil,
+      })
+    end,
   },
 
 })
@@ -431,6 +976,18 @@ vim.api.nvim_create_autocmd("FileType", {
 
     -- Set errorformat for Go compiler errors
     vim.opt_local.errorformat = "%f:%l:%c: %m,%f:%l: %m"
+  end,
+})
+
+-- Python configuration
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "python",
+  callback = function()
+    -- Use uv run for Python execution
+    vim.opt_local.makeprg = "uv run python %"
+
+    -- Python error format
+    vim.opt_local.errorformat = '%C %.%#,%A  File "%f"\\, line %l%.%#,%Z%[%^ ]%\\@=%m'
   end,
 })
 
@@ -606,12 +1163,12 @@ end, { nargs = "+", complete = "file", desc = "Convert recording to GIF and inse
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "markdown",
   callback = function()
-    vim.keymap.set("n", "<leader>mi", function() paste_image_from_clipboard() end, { buffer = true, desc = "Paste image from clipboard" })
+    vim.keymap.set("n", "<leader>mi", function() paste_image_from_clipboard() end, { buffer = true, desc = "Media: Paste image" })
     vim.keymap.set("n", "<leader>mn", function()
       vim.ui.input({ prompt = "Image name: " }, function(name)
         if name and name ~= "" then paste_image_from_clipboard(name) end
       end)
-    end, { buffer = true, desc = "Paste image with custom name" })
+    end, { buffer = true, desc = "Media: Paste image (named)" })
     vim.keymap.set("n", "<leader>mI", function()
       local search_dir = vim.fn.expand(markdown_media_config.image_search_dir)
       local depth = tostring(markdown_media_config.image_search_depth)
@@ -631,7 +1188,7 @@ vim.api.nvim_create_autocmd("FileType", {
           return true
         end,
       })
-    end, { buffer = true, desc = "Insert image from path" })
+    end, { buffer = true, desc = "Media: Insert from path" })
     vim.keymap.set("n", "<leader>mR", function()
       local search_dir = vim.fn.expand(markdown_media_config.recording_search_dir)
       local depth = tostring(markdown_media_config.recording_search_depth)
@@ -653,14 +1210,14 @@ vim.api.nvim_create_autocmd("FileType", {
           return true
         end,
       })
-    end, { buffer = true, desc = "Convert recording to GIF and insert" })
+    end, { buffer = true, desc = "Media: Recording to GIF" })
   end,
 })
 
 -- Build and run keymaps (language-aware)
 -- These work with makeprg set by FileType autocmds
-vim.keymap.set("n", "<leader>m", ":make<CR>", { desc = "Build with :make" })
-vim.keymap.set("n", "<leader>M", ":make ", { desc = "Build with custom args" })
+vim.keymap.set("n", "<leader>m", ":make<CR>", { desc = "Build: Run make" })
+vim.keymap.set("n", "<leader>M", ":make ", { desc = "Build: Make with args" })
 
 -- Language-specific run and test commands
 vim.keymap.set("n", "<leader>r", function()
@@ -671,10 +1228,12 @@ vim.keymap.set("n", "<leader>r", function()
     vim.cmd("!cargo run")
   elseif ft == "go" then
     vim.cmd("!go run .")
+  elseif ft == "python" then
+    vim.cmd("!uv run python %")
   else
     print("Run not configured for filetype: " .. ft)
   end
-end, { desc = "Build and Run (quickfix)" })
+end, { desc = "Run: Build and run" })
 
 vim.keymap.set("n", "<leader>t", function()
   local ft = vim.bo.filetype
@@ -684,10 +1243,12 @@ vim.keymap.set("n", "<leader>t", function()
     vim.cmd("!cargo test")
   elseif ft == "go" then
     vim.cmd("!go test")
+  elseif ft == "python" then
+    vim.cmd("!uv run pytest")
   else
     print("Test not configured for filetype: " .. ft)
   end
-end, { desc = "Run Tests" })
+end, { desc = "Test: Run tests" })
 
 -- Terminal-based run (output stays visible, can copy from it)
 vim.keymap.set("n", "<leader>rr", function()
@@ -699,13 +1260,15 @@ vim.keymap.set("n", "<leader>rr", function()
     cmd = "cargo run"
   elseif ft == "go" then
     cmd = "go run ."
+  elseif ft == "python" then
+    cmd = "uv run python " .. vim.fn.expand("%")
   else
     print("Run not configured for filetype: " .. ft)
     return
   end
   vim.cmd("split | terminal " .. cmd)
   vim.cmd("startinsert")
-end, { desc = "Run in terminal (persistent output)" })
+end, { desc = "Run: In terminal" })
 
 vim.keymap.set("n", "<leader>rt", function()
   local ft = vim.bo.filetype
@@ -716,19 +1279,21 @@ vim.keymap.set("n", "<leader>rt", function()
     cmd = "cargo test"
   elseif ft == "go" then
     cmd = "go test"
+  elseif ft == "python" then
+    cmd = "uv run pytest"
   else
     print("Test not configured for filetype: " .. ft)
     return
   end
   vim.cmd("split | terminal " .. cmd)
   vim.cmd("startinsert")
-end, { desc = "Test in terminal (persistent output)" })
+end, { desc = "Test: In terminal" })
 
 -- Quickfix navigation
-vim.keymap.set("n", "<leader>co", ":copen<CR>", { desc = "Open quickfix list" })
-vim.keymap.set("n", "<leader>cc", ":cclose<CR>", { desc = "Close quickfix list" })
-vim.keymap.set("n", "[q", ":cprev<CR>", { desc = "Previous quickfix item" })
-vim.keymap.set("n", "]q", ":cnext<CR>", { desc = "Next quickfix item" })
+vim.keymap.set("n", "<leader>co", ":copen<CR>", { desc = "Quickfix: Open" })
+vim.keymap.set("n", "<leader>cc", ":cclose<CR>", { desc = "Quickfix: Close" })
+vim.keymap.set("n", "[q", ":cprev<CR>", { desc = "Quickfix: Previous" })
+vim.keymap.set("n", "]q", ":cnext<CR>", { desc = "Quickfix: Next" })
 
 -- Copy all quickfix errors to clipboard
 vim.keymap.set("n", "<leader>ce", function()
@@ -742,11 +1307,12 @@ vim.keymap.set("n", "<leader>ce", function()
   local error_text = table.concat(errors, "\n")
   vim.fn.setreg("+", error_text)
   print("Copied " .. #errors .. " errors to clipboard")
-end, { desc = "Copy all errors to clipboard" })
+end, { desc = "Quickfix: Copy errors to clipboard" })
 
 -- Quick run current file (for single-file programs)
-vim.keymap.set("n", "<leader>zf", ":!zig run %<CR>", { desc = "Zig Run Current File" })
-vim.keymap.set("n", "<leader>rf", ":!rustc % && ./%:t:r<CR>", { desc = "Rust Run Current File" })
-vim.keymap.set("n", "<leader>gf", ":!go run %<CR>", { desc = "Go Run Current File" })
+vim.keymap.set("n", "<leader>zf", ":!zig run %<CR>", { desc = "Zig: Run file" })
+vim.keymap.set("n", "<leader>rf", ":!rustc % && ./%:t:r<CR>", { desc = "Rust: Run file" })
+vim.keymap.set("n", "<leader>gf", ":!go run %<CR>", { desc = "Go: Run file" })
+vim.keymap.set("n", "<leader>pf", ":!uv run python %<CR>", { desc = "Python: Run file" })
 -- clear ^@ characters
-vim.keymap.set('n', '<leader>fn', ':%s/\\%x00/\\r/g<CR>', { desc = 'Fix null bytes to newlines' })
+vim.keymap.set('n', '<leader>fn', ':%s/\\%x00/\\r/g<CR>', { desc = 'Fix: Null bytes to newlines' })
