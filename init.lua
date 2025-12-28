@@ -57,29 +57,41 @@ require("lazy").setup({
   {
     "folke/which-key.nvim",
     event = "VeryLazy",
-    opts = {
-      preset = "helix",
-      delay = 300,
-      icons = { mappings = false },
-      spec = {
-        { "<leader>p", group = "Python/IPython" },
-        { "<leader>r", group = "Run" },
-        { "<leader>f", group = "Find/Format" },
-        { "<leader>g", group = "Go/Git" },
-        { "<leader>z", group = "Zig/Zen" },
-        { "<leader>c", group = "Code" },
-        { "<leader>a", group = "AI/Claude" },
-        { "<leader>l", group = "LSP" },
-        { "<leader>e", desc = "File Explorer" },
-        { "<leader>m", desc = "Make/Build" },
-        { "<leader>t", desc = "Test" },
-        { "<leader>q", desc = "Quickfix" },
-        { "<leader>?", desc = "Ask how to..." },
-      },
-    },
-    config = function(_, opts)
+    config = function()
       local wk = require("which-key")
-      wk.setup(opts)
+      wk.setup({
+        preset = "helix",
+        delay = 300,
+        icons = { mappings = false },
+      })
+
+      -- Auto-generate group names from first keymap description in each prefix
+      -- This runs after all plugins load, so it sees all keymaps
+      vim.api.nvim_create_autocmd("User", {
+        pattern = "VeryLazy",
+        callback = function()
+          local groups = {}
+          for _, map in ipairs(vim.api.nvim_get_keymap("n")) do
+            if map.desc and map.lhs:match("^ ") then  -- leader maps start with space
+              local prefix = map.lhs:sub(1, 2)  -- e.g. " p" for <leader>p
+              if not groups[prefix] and #map.lhs > 2 then
+                -- Extract group name from first word of description
+                local group_name = map.desc:match("^(%w+)") or map.desc:sub(1, 10)
+                groups[prefix] = group_name
+              end
+            end
+          end
+
+          -- Register groups with which-key
+          local spec = {}
+          for prefix, name in pairs(groups) do
+            table.insert(spec, { "<leader>" .. prefix:sub(2), group = name })
+          end
+          if #spec > 0 then
+            wk.add(spec)
+          end
+        end,
+      })
 
       -- Helper to ask Claude how to do something
       vim.keymap.set("n", "<leader>?", function()
@@ -89,16 +101,14 @@ require("lazy").setup({
           -- Get all keymaps with descriptions
           local keymaps = {}
           for _, map in ipairs(vim.api.nvim_get_keymap("n")) do
-            if map.desc and map.lhs:match("^%s") then  -- leader maps
+            if map.desc and map.lhs:match("^%s") then
               table.insert(keymaps, map.lhs:gsub(" ", "<leader>") .. " → " .. map.desc)
             end
           end
 
-          -- Create prompt with context
           local context = "Available keymaps:\n" .. table.concat(keymaps, "\n") .. "\n\n"
           local prompt = context .. "How do I: " .. query .. "\n\nGive a brief answer with the keymap or command to use."
 
-          -- Copy to clipboard and notify
           vim.fn.setreg("+", prompt)
           vim.notify("Query copied! Open Claude (<leader>ac) and paste.", vim.log.levels.INFO)
         end)
