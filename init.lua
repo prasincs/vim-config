@@ -398,7 +398,7 @@ require("lazy").setup({
     end,
   },
 
-  -- Image rendering in terminal (for molten plots)
+  -- Image rendering in terminal (for molten plots, markdown, etc.)
   {
     "3rd/image.nvim",
     opts = {
@@ -407,7 +407,11 @@ require("lazy").setup({
       max_height = 20,
       max_height_window_percentage = 50,
       integrations = {
-        markdown = { enabled = false },
+        markdown = {
+          enabled = true,
+          clear_in_insert_mode = true,
+          only_render_image_at_cursor = false,
+        },
       },
     },
   },
