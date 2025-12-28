@@ -1,4 +1,4 @@
--- Neovim configuration with Zig LSP support
+-- Neovim configuration with Zig, Rust, Go, and Python LSP support
 -- Bootstrap lazy.nvim plugin manager
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
@@ -70,7 +70,7 @@ require("lazy").setup({
       -- Setup Mason
       require("mason").setup()
       require("mason-lspconfig").setup({
-        ensure_installed = { "rust_analyzer", "gopls" },
+        ensure_installed = { "rust_analyzer", "gopls", "basedpyright" },
         automatic_installation = true,
       })
 
@@ -87,6 +87,23 @@ require("lazy").setup({
         cmd = { "gopls" },
         filetypes = { "go", "gomod", "gowork", "gotmpl" },
         root_markers = { "go.mod", ".git", "go.work" },
+      }
+
+      -- Python language server (basedpyright - enhanced pyright fork)
+      vim.lsp.config.basedpyright = {
+        cmd = { "basedpyright-langserver", "--stdio" },
+        filetypes = { "python" },
+        root_markers = { "pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "uv.lock", ".git" },
+        settings = {
+          basedpyright = {
+            analysis = {
+              typeCheckingMode = "standard",
+              autoSearchPaths = true,
+              useLibraryCodeForTypes = true,
+              diagnosticMode = "openFilesOnly",
+            },
+          },
+        },
       }
 
       -- LSP keymaps
@@ -125,6 +142,7 @@ require("lazy").setup({
       vim.lsp.enable("zls")
       vim.lsp.enable("rust_analyzer")
       vim.lsp.enable("gopls")
+      vim.lsp.enable("basedpyright")
     end,
   },
 
@@ -191,7 +209,7 @@ require("lazy").setup({
     build = ":TSUpdate",
     main = "nvim-treesitter",
     opts = {
-      ensure_installed = { "zig", "rust", "go", "lua", "vim", "vimdoc", "markdown", "markdown_inline" },
+      ensure_installed = { "zig", "rust", "go", "lua", "vim", "vimdoc", "markdown", "markdown_inline", "python" },
       auto_install = true,
       highlight = { enable = true },
       indent = { enable = true },
@@ -338,6 +356,61 @@ require("lazy").setup({
     },
   },
 
+  -- Interactive REPL for Python/IPython
+  {
+    "Vigemus/iron.nvim",
+    config = function()
+      local iron = require("iron.core")
+      local view = require("iron.view")
+      local common = require("iron.fts.common")
+
+      iron.setup({
+        config = {
+          scratch_repl = true,
+          repl_definition = {
+            python = {
+              command = { "ipython", "--no-autoindent" },
+              format = common.bracketed_paste_python,
+              block_dividers = { "# %%", "#%%" },
+            },
+          },
+          repl_open_cmd = view.split.vertical.botright(80),
+        },
+        keymaps = {
+          toggle_repl = "<leader>pi",
+          send_motion = "<leader>ps",
+          visual_send = "<leader>ps",
+          send_file = "<leader>pF",
+          send_line = "<leader>pl",
+          send_paragraph = "<leader>pp",
+          send_until_cursor = "<leader>pu",
+          send_code_block = "<leader>pb",
+          send_code_block_and_move = "<leader>pn",
+          cr = "<leader>p<cr>",
+          interrupt = "<leader>px",
+          exit = "<leader>pq",
+          clear = "<leader>pc",
+        },
+        highlight = {
+          italic = true,
+        },
+        ignore_blank_lines = true,
+      })
+    end,
+  },
+
+  -- Jupyter notebook editing (converts .ipynb to Python with cell markers)
+  {
+    "GCBallesteros/jupytext.nvim",
+    config = function()
+      require("jupytext").setup({
+        style = "percent",  -- Use # %% cell markers
+        output_extension = "auto",
+        force_ft = nil,
+      })
+    end,
+  },
+
 })
 
 -- Additional keybindings
@@ -431,6 +504,18 @@ vim.api.nvim_create_autocmd("FileType", {
 
     -- Set errorformat for Go compiler errors
     vim.opt_local.errorformat = "%f:%l:%c: %m,%f:%l: %m"
+  end,
+})
+
+-- Python configuration
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "python",
+  callback = function()
+    -- Use uv run for Python execution
+    vim.opt_local.makeprg = "uv run python %"
+
+    -- Python error format
+    vim.opt_local.errorformat = '%C %.%#,%A  File "%f"\\, line %l%.%#,%Z%[%^ ]%\\@=%m'
   end,
 })
 
@@ -671,6 +756,8 @@ vim.keymap.set("n", "<leader>r", function()
     vim.cmd("!cargo run")
   elseif ft == "go" then
     vim.cmd("!go run .")
+  elseif ft == "python" then
+    vim.cmd("!uv run python %")
   else
     print("Run not configured for filetype: " .. ft)
   end
@@ -684,6 +771,8 @@ vim.keymap.set("n", "<leader>t", function()
     vim.cmd("!cargo test")
   elseif ft == "go" then
     vim.cmd("!go test")
+  elseif ft == "python" then
+    vim.cmd("!uv run pytest")
   else
     print("Test not configured for filetype: " .. ft)
   end
@@ -699,6 +788,8 @@ vim.keymap.set("n", "<leader>rr", function()
     cmd = "cargo run"
   elseif ft == "go" then
     cmd = "go run ."
+  elseif ft == "python" then
+    cmd = "uv run python " .. vim.fn.expand("%")
   else
     print("Run not configured for filetype: " .. ft)
     return
@@ -716,6 +807,8 @@ vim.keymap.set("n", "<leader>rt", function()
     cmd = "cargo test"
   elseif ft == "go" then
     cmd = "go test"
+  elseif ft == "python" then
+    cmd = "uv run pytest"
   else
     print("Test not configured for filetype: " .. ft)
     return
@@ -748,5 +841,6 @@ end, { desc = "Copy all errors to clipboard" })
 vim.keymap.set("n", "<leader>zf", ":!zig run %<CR>", { desc = "Zig Run Current File" })
 vim.keymap.set("n", "<leader>rf", ":!rustc % && ./%:t:r<CR>", { desc = "Rust Run Current File" })
 vim.keymap.set("n", "<leader>gf", ":!go run %<CR>", { desc = "Go Run Current File" })
+vim.keymap.set("n", "<leader>pf", ":!uv run python %<CR>", { desc = "Python Run Current File" })
 -- clear ^@ characters
 vim.keymap.set('n', '<leader>fn', ':%s/\\%x00/\\r/g<CR>', { desc = 'Fix null bytes to newlines' })

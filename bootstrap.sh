@@ -1,11 +1,12 @@
 #!/bin/bash
 
-# Bootstrap script for portable Neovim setup with Zig, Rust, and Go support
+# Bootstrap script for portable Neovim setup with Zig, Rust, Go, and Python support
+# Clones vim-config to ~/vim-config and symlinks ~/.config/nvim -> ~/vim-config
 # Usage: curl -sSL https://raw.githubusercontent.com/[username]/vim-config/master/bootstrap.sh | bash
 
 set -e
 
-echo "🚀 Setting up Neovim with Zig, Rust, and Go support..."
+echo "🚀 Setting up Neovim with Zig, Rust, Go, and Python support..."
 
 # Function to check if a command exists
 command_exists() {
@@ -130,27 +131,49 @@ if [[ "$XDG_SESSION_TYPE" == "wayland" ]] || [[ -n "$SOMMELIER_VERSION" ]]; then
     esac
 fi
 
-# Clone or update the configuration
-if [ -d "$HOME/.config/nvim/.git" ]; then
-    echo "📥 Updating existing Neovim configuration..."
-    git -C "$HOME/.config/nvim" fetch origin
-    git -C "$HOME/.config/nvim" reset --hard origin/${GITHUB_BRANCH:-master}
-    echo "✅ Configuration updated"
+# Clone or update the configuration in ~/vim-config
+if [ -d "$HOME/vim-config/.git" ]; then
+    echo "📂 vim-config already exists - preserving local configuration"
+    echo "   To update from remote, manually run: git -C ~/vim-config pull"
+elif [ -d "$HOME/vim-config" ]; then
+    # Directory exists but not a git repo - leave it alone
+    echo "📂 vim-config directory exists (not a git repo) - preserving local configuration"
 else
-    # Backup existing config if present (but not a git repo)
-    if [ -d "$HOME/.config/nvim" ]; then
-        echo "📂 Backing up existing Neovim config..."
-        mv "$HOME/.config/nvim" "$HOME/.config/nvim.backup.$(date +%Y%m%d_%H%M%S)"
-    fi
-    echo "📥 Cloning Neovim configuration..."
-    git clone -b ${GITHUB_BRANCH:-master} https://github.com/${GITHUB_USER:-prasincs}/vim-config.git "$HOME/.config/nvim"
+    echo "📥 Cloning vim-config repository..."
+    git clone -b ${GITHUB_BRANCH:-master} https://github.com/${GITHUB_USER:-prasincs}/vim-config.git "$HOME/vim-config"
 fi
 
-# Ensure init.lua exists at the expected location
-if [ ! -f "$HOME/.config/nvim/init.lua" ]; then
-    echo "❌ Error: init.lua not found after clone!"
-    echo "   Expected: $HOME/.config/nvim/init.lua"
-    exit 1
+# Symlink ~/.config/nvim to ~/vim-config (only if vim-config exists)
+mkdir -p "$HOME/.config"
+if [ -d "$HOME/vim-config" ]; then
+    if [ -L "$HOME/.config/nvim" ]; then
+        # Already a symlink - check if it points to the right place
+        CURRENT_TARGET=$(readlink "$HOME/.config/nvim")
+        if [ "$CURRENT_TARGET" != "$HOME/vim-config" ]; then
+            echo "⚠️  ~/.config/nvim symlink points to: $CURRENT_TARGET"
+            echo "   Expected: $HOME/vim-config"
+            echo "   To fix, run: ln -sf ~/vim-config ~/.config/nvim"
+        else
+            echo "✅ Symlink already correct: ~/.config/nvim -> ~/vim-config"
+        fi
+    elif [ -d "$HOME/.config/nvim" ]; then
+        # Existing directory - don't touch it, warn user
+        echo "⚠️  ~/.config/nvim is a directory (not symlink to vim-config)"
+        echo "   Bootstrap will NOT modify existing nvim configuration."
+        echo "   To use vim-config, manually run:"
+        echo "     mv ~/.config/nvim ~/.config/nvim.backup"
+        echo "     ln -s ~/vim-config ~/.config/nvim"
+    elif [ ! -e "$HOME/.config/nvim" ]; then
+        # No existing config - create symlink
+        ln -s "$HOME/vim-config" "$HOME/.config/nvim"
+        echo "✅ Created symlink: ~/.config/nvim -> ~/vim-config"
+    fi
+fi
+
+# Ensure init.lua exists at the expected location (only check if vim-config exists)
+if [ -d "$HOME/vim-config" ] && [ ! -f "$HOME/vim-config/init.lua" ]; then
+    echo "⚠️  init.lua not found in ~/vim-config"
+    echo "   Plugins and language servers may not work correctly."
 fi
 
 # First run to install plugins and language servers
@@ -174,7 +197,7 @@ sleep 2
 
 # Install Mason packages (language servers)
 echo "   Installing language servers via Mason..."
-nvim --headless -c "MasonInstall rust-analyzer gopls" -c "sleep 30" -c "qall" 2>&1 || true
+nvim --headless -c "MasonInstall rust-analyzer gopls basedpyright" -c "sleep 30" -c "qall" 2>&1 || true
 
 # Verify Mason packages installed
 MASON_FAILED=0
@@ -186,11 +209,15 @@ if [ ! -x "$HOME/.local/share/nvim/mason/bin/gopls" ]; then
     echo "   ⚠️  gopls not installed (will retry)"
     MASON_FAILED=1
 fi
+if [ ! -x "$HOME/.local/share/nvim/mason/bin/basedpyright" ]; then
+    echo "   ⚠️  basedpyright not installed (will retry)"
+    MASON_FAILED=1
+fi
 
 # Retry Mason install if needed
 if [ $MASON_FAILED -eq 1 ]; then
     echo "   Retrying Mason install..."
-    nvim --headless -c "MasonInstall rust-analyzer gopls" -c "sleep 60" -c "qall" 2>&1 || true
+    nvim --headless -c "MasonInstall rust-analyzer gopls basedpyright" -c "sleep 60" -c "qall" 2>&1 || true
 fi
 
 # Final verification of Mason packages
@@ -204,15 +231,20 @@ if [ -x "$HOME/.local/share/nvim/mason/bin/gopls" ]; then
 else
     echo "   ⚠️  gopls not installed - run :MasonInstall gopls in nvim"
 fi
+if [ -x "$HOME/.local/share/nvim/mason/bin/basedpyright" ]; then
+    echo "   ✅ basedpyright installed"
+else
+    echo "   ⚠️  basedpyright not installed - run :MasonInstall basedpyright in nvim"
+fi
 
 # Install Treesitter parsers
 echo "   Installing Treesitter parsers..."
-nvim --headless -c "TSInstall rust go zig lua vim vimdoc" -c "sleep 10" -c "qall" 2>&1 || true
+nvim --headless -c "TSInstall rust go zig lua vim vimdoc python" -c "sleep 10" -c "qall" 2>&1 || true
 
 # Optional: Install language toolchains if desired
 echo ""
 echo "📦 Optional: Install language toolchains"
-echo "Would you like to install Rust, Go, and Zig? (y/N)"
+echo "Would you like to install Rust, Go, Zig, and Python (uv)? (y/N)"
 if [ -t 0 ]; then
     read -r response
 else
@@ -383,6 +415,43 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
             echo "✅ Installed: $(zig version)"
         fi
     fi
+
+    # Install/upgrade uv (Python package manager)
+    echo "🐍 Checking uv installation..."
+
+    if command_exists uv; then
+        UV_CURRENT=$(uv --version 2>/dev/null | grep -o '[0-9.]*' | head -1)
+        echo "Current uv: $UV_CURRENT"
+        echo "Updating uv to latest..."
+        uv self update 2>/dev/null || {
+            # Fallback: reinstall if self update fails
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+        }
+        echo "✅ uv updated: $(uv --version)"
+    else
+        echo "Installing uv..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+
+        # Add to PATH for current session
+        export PATH="$HOME/.local/bin:$PATH"
+
+        if command_exists uv; then
+            echo "✅ Installed: $(uv --version)"
+        else
+            echo "❌ uv installation failed"
+        fi
+    fi
+
+    # Install Python and ipython via uv
+    if command_exists uv; then
+        echo "   Installing Python 3.12..."
+        uv python install 3.12 2>/dev/null || true
+        echo "   ✅ Python installed"
+
+        echo "   Installing ipython..."
+        uv tool install ipython 2>/dev/null || uv tool upgrade ipython 2>/dev/null || true
+        echo "   ✅ ipython installed"
+    fi
 fi
 
 echo ""
@@ -453,6 +522,12 @@ else
     echo "   Note: gopls requires Go to be installed"
 fi
 
+if check_component "basedpyright" "test -x ~/.local/share/nvim/mason/bin/basedpyright"; then
+    ((CHECKS_PASSED++))
+else
+    ((CHECKS_FAILED++))
+fi
+
 # Check language toolchains if installed
 echo ""
 echo "🔨 Checking Language Toolchains:"
@@ -490,12 +565,27 @@ else
     echo "⚪ Zig: Not installed (optional)"
 fi
 
+if command_exists uv; then
+    if check_component "uv" "uv --version"; then
+        ((CHECKS_PASSED++))
+        echo "   $(uv --version)"
+        # Also check Python via uv
+        if uv python list 2>/dev/null | head -1 >/dev/null; then
+            echo "   Python: $(uv python list 2>/dev/null | head -1)"
+        fi
+    else
+        ((CHECKS_FAILED++))
+    fi
+else
+    echo "⚪ uv: Not installed (optional)"
+fi
+
 # Check Treesitter parsers
 echo ""
 echo "🌳 Checking Treesitter Parsers:"
 TREESITTER_DIR="$HOME/.local/share/nvim/lazy/nvim-treesitter/parser"
 if [ -d "$TREESITTER_DIR" ]; then
-    for lang in rust go zig; do
+    for lang in rust go zig python; do
         if [ -f "$TREESITTER_DIR/${lang}.so" ]; then
             echo "✅ ${lang}.so: OK"
             ((CHECKS_PASSED++))
@@ -533,13 +623,16 @@ echo "  • Quick run current file:"
 echo "    - Zig: <Space>zf"
 echo "    - Rust: <Space>rf"
 echo "    - Go: <Space>gf"
+echo "    - Python: <Space>pf"
+echo "  • Python REPL: <Space>pi (toggle IPython)"
 echo "  • File explorer: <Space>e"
 echo "  • Find files: <Space>ff"
 echo "  • Live grep: <Space>fg"
+echo "  • Writing mode: <Space>z (Zen Mode)"
 echo "  • LSP hover: K"
 echo "  • Go to definition: gd"
 echo "  • Rename: <Space>rn"
 echo "  • Code action: <Space>ca"
 echo "  • Format: <Space>f"
 echo ""
-echo "🚀 Run 'nvim' to start coding with full Zig, Rust, and Go support!"
+echo "🚀 Run 'nvim' to start coding with full Zig, Rust, Go, and Python support!"
