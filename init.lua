@@ -378,26 +378,24 @@ require("lazy").setup({
           },
           repl_open_cmd = view.split.vertical.botright(80),
         },
-        keymaps = {
-          toggle_repl = "<leader>pi",
-          send_motion = "<leader>ps",
-          visual_send = "<leader>ps",
-          send_file = "<leader>pF",
-          send_line = "<leader>pl",
-          send_paragraph = "<leader>pp",
-          send_until_cursor = "<leader>pu",
-          send_code_block = "<leader>pb",
-          send_code_block_and_move = "<leader>pn",
-          cr = "<leader>p<cr>",
-          interrupt = "<leader>px",
-          exit = "<leader>pq",
-          clear = "<leader>pc",
-        },
         highlight = {
           italic = true,
         },
         ignore_blank_lines = true,
       })
+
+      -- Set up keymaps manually (iron.nvim keymaps config is deprecated)
+      vim.keymap.set("n", "<leader>pi", iron.repl_for, { desc = "Iron: Open REPL" })
+      vim.keymap.set("n", "<leader>pr", iron.repl_restart, { desc = "Iron: Restart REPL" })
+      vim.keymap.set("n", "<leader>ph", iron.hide_repl, { desc = "Iron: Hide REPL" })
+      vim.keymap.set("n", "<leader>pl", iron.send_line, { desc = "Iron: Send line" })
+      vim.keymap.set("v", "<leader>ps", iron.visual_send, { desc = "Iron: Send selection" })
+      vim.keymap.set("n", "<leader>pp", iron.send_paragraph, { desc = "Iron: Send paragraph" })
+      vim.keymap.set("n", "<leader>pb", iron.send_code_block, { desc = "Iron: Send code block" })
+      vim.keymap.set("n", "<leader>pn", iron.send_code_block_and_move, { desc = "Iron: Send block & move" })
+      vim.keymap.set("n", "<leader>pF", iron.send_file, { desc = "Iron: Send file" })
+      vim.keymap.set("n", "<leader>px", iron.interrupt, { desc = "Iron: Interrupt REPL" })
+      vim.keymap.set("n", "<leader>pq", iron.close_repl, { desc = "Iron: Close REPL" })
     end,
   },
 
