@@ -197,7 +197,7 @@ sleep 2
 
 # Install Mason packages (language servers)
 echo "   Installing language servers via Mason..."
-nvim --headless -c "MasonInstall rust-analyzer gopls basedpyright" -c "sleep 30" -c "qall" 2>&1 || true
+nvim --headless -c "MasonInstall rust-analyzer gopls" -c "sleep 30" -c "qall" 2>&1 || true
 
 # Verify Mason packages installed
 MASON_FAILED=0
@@ -209,15 +209,10 @@ if [ ! -x "$HOME/.local/share/nvim/mason/bin/gopls" ]; then
     echo "   ⚠️  gopls not installed (will retry)"
     MASON_FAILED=1
 fi
-if [ ! -x "$HOME/.local/share/nvim/mason/bin/basedpyright" ]; then
-    echo "   ⚠️  basedpyright not installed (will retry)"
-    MASON_FAILED=1
-fi
-
 # Retry Mason install if needed
 if [ $MASON_FAILED -eq 1 ]; then
     echo "   Retrying Mason install..."
-    nvim --headless -c "MasonInstall rust-analyzer gopls basedpyright" -c "sleep 60" -c "qall" 2>&1 || true
+    nvim --headless -c "MasonInstall rust-analyzer gopls" -c "sleep 60" -c "qall" 2>&1 || true
 fi
 
 # Final verification of Mason packages
@@ -231,12 +226,6 @@ if [ -x "$HOME/.local/share/nvim/mason/bin/gopls" ]; then
 else
     echo "   ⚠️  gopls not installed - run :MasonInstall gopls in nvim"
 fi
-if [ -x "$HOME/.local/share/nvim/mason/bin/basedpyright" ]; then
-    echo "   ✅ basedpyright installed"
-else
-    echo "   ⚠️  basedpyright not installed - run :MasonInstall basedpyright in nvim"
-fi
-
 # Install Treesitter parsers
 echo "   Installing Treesitter parsers..."
 nvim --headless -c "TSInstall rust go zig lua vim vimdoc python" -c "sleep 10" -c "qall" 2>&1 || true
@@ -442,15 +431,16 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         fi
     fi
 
-    # Install Python and ipython via uv
+    # Install Python and tools via uv
     if command_exists uv; then
         echo "   Installing Python 3.12..."
         uv python install 3.12 2>/dev/null || true
         echo "   ✅ Python installed"
 
-        echo "   Installing ipython..."
+        echo "   Installing Python tools (ipython, basedpyright)..."
         uv tool install ipython 2>/dev/null || uv tool upgrade ipython 2>/dev/null || true
-        echo "   ✅ ipython installed"
+        uv tool install basedpyright 2>/dev/null || uv tool upgrade basedpyright 2>/dev/null || true
+        echo "   ✅ Python tools installed"
     fi
 fi
 
@@ -522,12 +512,6 @@ else
     echo "   Note: gopls requires Go to be installed"
 fi
 
-if check_component "basedpyright" "test -x ~/.local/share/nvim/mason/bin/basedpyright"; then
-    ((CHECKS_PASSED++))
-else
-    ((CHECKS_FAILED++))
-fi
-
 # Check language toolchains if installed
 echo ""
 echo "🔨 Checking Language Toolchains:"
@@ -572,6 +556,15 @@ if command_exists uv; then
         # Also check Python via uv
         if uv python list 2>/dev/null | head -1 >/dev/null; then
             echo "   Python: $(uv python list 2>/dev/null | head -1)"
+        fi
+        # Check uv-installed tools
+        if command_exists basedpyright; then
+            echo "   ✅ basedpyright: $(basedpyright --version 2>&1 | head -1)"
+        else
+            echo "   ⚠️  basedpyright not installed (run: uv tool install basedpyright)"
+        fi
+        if command_exists ipython; then
+            echo "   ✅ ipython installed"
         fi
     else
         ((CHECKS_FAILED++))

@@ -70,7 +70,7 @@ require("lazy").setup({
       -- Setup Mason
       require("mason").setup()
       require("mason-lspconfig").setup({
-        ensure_installed = { "rust_analyzer", "gopls", "basedpyright" },
+        ensure_installed = { "rust_analyzer", "gopls" },  -- basedpyright installed via uv
         automatic_installation = true,
       })
 
