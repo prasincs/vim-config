@@ -228,15 +228,13 @@ require("lazy").setup({
         vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
         vim.api.nvim_buf_set_name(buf, "[Tutor]")
 
-        -- Open tutor in left split, Claude on right
+        -- Open tutor in a vertical split
         vim.cmd("vsplit")
         vim.api.nvim_win_set_buf(0, buf)
         vim.cmd("wincmd H")  -- Move to far left
-        vim.cmd("vertical resize 50")
+        vim.cmd("vertical resize 60")
 
-        -- Open Claude in the other window
-        vim.cmd("wincmd l")
-        vim.cmd("ClaudeCode")
+        vim.notify("Tutor opened. Press <leader>ac to open Claude and ask questions!", vim.log.levels.INFO)
       end, { desc = "Open AI-powered Neovim tutor" })
 
       vim.keymap.set("n", "<leader>h", "<cmd>Tutor<cr>", { desc = "Help: AI Tutor" })
