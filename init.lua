@@ -70,8 +70,10 @@ require("lazy").setup({
       -- Setup Mason
       require("mason").setup()
       require("mason-lspconfig").setup({
-        ensure_installed = { "rust_analyzer", "gopls" },  -- basedpyright installed via uv
-        automatic_installation = true,
+        ensure_installed = { "rust_analyzer", "gopls" },
+        automatic_installation = {
+          exclude = { "basedpyright" },  -- installed via uv instead
+        },
       })
 
       -- Setup LSP servers using the modern vim.lsp.config API
