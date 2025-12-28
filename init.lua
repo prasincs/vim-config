@@ -1,11 +1,5 @@
 -- Neovim configuration with Zig, Rust, Go, and Python LSP support
 
--- Python provider for molten-nvim (uses venv created by bootstrap)
-local nvim_venv = vim.fn.stdpath("data") .. "/python-venv/bin/python"
-if vim.fn.filereadable(nvim_venv) == 1 then
-  vim.g.python3_host_prog = nvim_venv
-end
-
 -- Bootstrap lazy.nvim plugin manager
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
@@ -365,40 +359,88 @@ require("lazy").setup({
     },
   },
 
-  -- Jupyter-style REPL with inline output (plots, images, dataframes)
+  -- Simple IPython terminal toggle (just works, no setup needed)
   {
-    "benlubas/molten-nvim",
-    version = "^1.0.0",
-    dependencies = { "3rd/image.nvim" },
-    build = ":UpdateRemotePlugins",
-    init = function()
-      vim.g.molten_image_provider = "image.nvim"
-      vim.g.molten_output_win_max_height = 20
-      vim.g.molten_auto_open_output = true
-      vim.g.molten_virt_text_output = true
-      vim.g.molten_virt_lines_off_by_1 = true
-    end,
+    "akinsho/toggleterm.nvim",
+    version = "*",
     config = function()
-      -- Keymaps for molten
-      vim.keymap.set("n", "<leader>pi", ":MoltenInit<CR>", { desc = "Molten: Init kernel" })
-      vim.keymap.set("n", "<leader>pl", ":MoltenEvaluateLine<CR>", { desc = "Molten: Eval line" })
-      vim.keymap.set("v", "<leader>ps", ":<C-u>MoltenEvaluateVisual<CR>gv", { desc = "Molten: Eval selection" })
-      vim.keymap.set("n", "<leader>pb", ":MoltenEvaluateOperator<CR>", { desc = "Molten: Eval operator" })
-      vim.keymap.set("n", "<leader>pr", ":MoltenReevaluateCell<CR>", { desc = "Molten: Re-eval cell" })
-      vim.keymap.set("n", "<leader>pd", ":MoltenDelete<CR>", { desc = "Molten: Delete cell" })
-      vim.keymap.set("n", "<leader>po", ":MoltenShowOutput<CR>", { desc = "Molten: Show output" })
-      vim.keymap.set("n", "<leader>ph", ":MoltenHideOutput<CR>", { desc = "Molten: Hide output" })
-      vim.keymap.set("n", "<leader>px", ":MoltenInterrupt<CR>", { desc = "Molten: Interrupt" })
+      require("toggleterm").setup({
+        size = function(term)
+          if term.direction == "horizontal" then
+            return 15
+          elseif term.direction == "vertical" then
+            return vim.o.columns * 0.4
+          end
+        end,
+        open_mapping = [[<c-\>]],
+        direction = "vertical",
+      })
 
-      -- Run cell and move to next (for # %% workflow)
+      -- Dedicated IPython terminal
+      local Terminal = require("toggleterm.terminal").Terminal
+      local ipython = Terminal:new({
+        cmd = "ipython",
+        direction = "vertical",
+        hidden = true,
+        on_open = function(term)
+          vim.cmd("startinsert!")
+        end,
+      })
+
+      -- Toggle IPython REPL
+      vim.keymap.set("n", "<leader>pi", function() ipython:toggle() end, { desc = "Toggle IPython" })
+
+      -- Send current line to IPython
+      vim.keymap.set("n", "<leader>pl", function()
+        local line = vim.api.nvim_get_current_line()
+        ipython:send(line, true)
+      end, { desc = "Send line to IPython" })
+
+      -- Send visual selection to IPython
+      vim.keymap.set("v", "<leader>ps", function()
+        -- Get visual selection
+        local start_pos = vim.fn.getpos("'<")
+        local end_pos = vim.fn.getpos("'>")
+        local lines = vim.api.nvim_buf_get_lines(0, start_pos[2] - 1, end_pos[2], false)
+        if #lines > 0 then
+          -- Adjust first and last line for visual selection
+          lines[#lines] = string.sub(lines[#lines], 1, end_pos[3])
+          lines[1] = string.sub(lines[1], start_pos[3])
+        end
+        ipython:send(lines, true)
+      end, { desc = "Send selection to IPython" })
+
+      -- Send paragraph to IPython
+      vim.keymap.set("n", "<leader>pp", function()
+        local start_line = vim.fn.search("^\\s*$", "bnW") + 1
+        local end_line = vim.fn.search("^\\s*$", "nW") - 1
+        if end_line < start_line then
+          end_line = vim.fn.line("$")
+        end
+        local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+        ipython:send(lines, true)
+      end, { desc = "Send paragraph to IPython" })
+
+      -- Send code block (# %% cell) to IPython
+      vim.keymap.set("n", "<leader>pb", function()
+        local current_line = vim.fn.line(".")
+        local start_line = vim.fn.search("^# %%", "bnW")
+        if start_line == 0 then start_line = 1 else start_line = start_line + 1 end
+        local end_line = vim.fn.search("^# %%", "nW") - 1
+        if end_line < start_line then end_line = vim.fn.line("$") end
+        local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+        ipython:send(lines, true)
+      end, { desc = "Send code block to IPython" })
+
+      -- Send block and move to next
       vim.keymap.set("n", "<leader>pn", function()
-        vim.cmd("MoltenReevaluateCell")
+        vim.cmd("normal \\<leader>pb")
         vim.fn.search("^# %%", "W")
-      end, { desc = "Molten: Eval cell & next" })
+      end, { desc = "Send block & move next" })
     end,
   },
 
-  -- Image rendering in terminal (for molten plots, markdown, etc.)
+  -- Image rendering in terminal (for markdown images)
   {
     "3rd/image.nvim",
     opts = {
