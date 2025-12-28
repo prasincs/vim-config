@@ -97,6 +97,77 @@ require("lazy").setup({
 
       -- Show all keymaps with Telescope
       vim.keymap.set("n", "<leader>?", "<cmd>Telescope keymaps<cr>", { desc = "Help: Search keymaps" })
+
+      -- AI-powered vim tutor
+      vim.api.nvim_create_user_command("Tutor", function()
+        -- Gather all keymaps with descriptions
+        local lines = {
+          "# Neovim Keymaps Reference",
+          "",
+          "Ask me anything about these keymaps or how to do something in Neovim!",
+          "",
+          "## Leader Keymaps (<Space> is leader)",
+          "",
+        }
+
+        -- Collect and sort keymaps by category
+        local categories = {}
+        for _, map in ipairs(vim.api.nvim_get_keymap("n")) do
+          if map.desc and map.lhs:match("^ ") then
+            local cat = map.desc:match("^([^:]+):") or "Other"
+            categories[cat] = categories[cat] or {}
+            local key = map.lhs:gsub(" ", "<leader>")
+            table.insert(categories[cat], "- `" .. key .. "` — " .. map.desc)
+          end
+        end
+
+        -- Add visual mode keymaps
+        for _, map in ipairs(vim.api.nvim_get_keymap("v")) do
+          if map.desc and map.lhs:match("^ ") then
+            local cat = map.desc:match("^([^:]+):") or "Other"
+            categories[cat] = categories[cat] or {}
+            local key = map.lhs:gsub(" ", "<leader>")
+            table.insert(categories[cat], "- `" .. key .. "` (visual) — " .. map.desc)
+          end
+        end
+
+        -- Format by category
+        for cat, maps in pairs(categories) do
+          table.insert(lines, "### " .. cat)
+          for _, m in ipairs(maps) do
+            table.insert(lines, m)
+          end
+          table.insert(lines, "")
+        end
+
+        -- Add common vim tips
+        table.insert(lines, "## Common Vim Commands")
+        table.insert(lines, "- `w/b` — word forward/back")
+        table.insert(lines, "- `f{char}` — find char on line")
+        table.insert(lines, "- `ciw` — change inner word")
+        table.insert(lines, "- `ci\"` — change inside quotes")
+        table.insert(lines, "- `va{` — select around braces")
+        table.insert(lines, "- `gg/G` — go to top/bottom")
+        table.insert(lines, "- `<C-o>/<C-i>` — jump back/forward")
+        table.insert(lines, "- `*/#` — search word under cursor")
+        table.insert(lines, "")
+
+        -- Create buffer with content
+        local buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+        vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
+        vim.api.nvim_buf_set_name(buf, "tutor://keymaps")
+
+        -- Open in split
+        vim.cmd("vsplit")
+        vim.api.nvim_win_set_buf(0, buf)
+
+        -- Add to Claude and open chat
+        vim.cmd("ClaudeCodeAdd tutor://keymaps")
+        vim.cmd("ClaudeCode")
+      end, { desc = "Open AI-powered Neovim tutor" })
+
+      vim.keymap.set("n", "<leader>h", "<cmd>Tutor<cr>", { desc = "Help: AI Tutor" })
     end,
   },
 
