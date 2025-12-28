@@ -61,9 +61,38 @@ require("lazy").setup({
       local wk = require("which-key")
       wk.setup({
         preset = "helix",
-        delay = 300,
+        delay = 200,  -- Show quickly
         icons = { mappings = false },
+        win = {
+          border = "rounded",
+          padding = { 1, 2 },
+          title = true,
+          title_pos = "center",
+        },
+        -- Show pressed keys in cmdline
+        show_keys = true,
+        -- Don't hide immediately after key press
+        triggers = {
+          { "<auto>", mode = "nxso" },
+        },
       })
+
+      -- Learning mode: show which-key and echo pressed keys
+      local learning_mode = false
+      vim.api.nvim_create_user_command("LearnKeys", function()
+        learning_mode = not learning_mode
+        if learning_mode then
+          vim.o.showcmd = true
+          vim.o.showcmdloc = "statusline"
+          wk.setup({ delay = 0 })  -- Show immediately
+          vim.notify("Learning mode ON - which-key shows immediately", vim.log.levels.INFO)
+        else
+          wk.setup({ delay = 200 })
+          vim.notify("Learning mode OFF", vim.log.levels.INFO)
+        end
+      end, { desc = "Toggle key learning mode" })
+
+      vim.keymap.set("n", "<leader>L", "<cmd>LearnKeys<cr>", { desc = "Help: Toggle learning mode" })
 
       -- Auto-generate group names from "Category: action" description pattern
       -- This runs after all plugins load, so it sees all keymaps
