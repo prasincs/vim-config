@@ -94,6 +94,21 @@ require("lazy").setup({
 
       vim.keymap.set("n", "<leader>L", "<cmd>LearnKeys<cr>", { desc = "Help: Toggle learning mode" })
 
+      -- Show which-key popup in visual mode
+      vim.keymap.set("v", "<leader>", function()
+        wk.show({ mode = "v", keys = "<leader>" })
+      end, { desc = "Show visual mode keymaps" })
+
+      -- Toggle which-key popup manually (works in any mode)
+      vim.keymap.set({ "n", "v" }, "<C-/>", function()
+        local mode = vim.fn.mode()
+        if mode == "v" or mode == "V" or mode == "\22" then  -- visual modes
+          wk.show({ mode = "v", keys = "" })
+        else
+          wk.show({ mode = "n", keys = "" })
+        end
+      end, { desc = "Help: Show all keymaps" })
+
       -- Auto-generate group names from "Category: action" description pattern
       -- This runs after all plugins load, so it sees all keymaps
       vim.api.nvim_create_autocmd("User", {
