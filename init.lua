@@ -53,6 +53,31 @@ vim.g.maplocalleader = " "
 
 -- Plugin setup
 require("lazy").setup({
+  -- Which-key: shows available keymaps as you type
+  {
+    "folke/which-key.nvim",
+    event = "VeryLazy",
+    opts = {
+      preset = "helix",
+      delay = 300,
+      icons = { mappings = false },
+      spec = {
+        { "<leader>p", group = "Python/IPython" },
+        { "<leader>r", group = "Run" },
+        { "<leader>f", group = "Find/Format" },
+        { "<leader>g", group = "Go/Git" },
+        { "<leader>z", group = "Zig/Zen" },
+        { "<leader>c", group = "Code" },
+        { "<leader>a", group = "AI/Claude" },
+        { "<leader>l", group = "LSP" },
+        { "<leader>e", desc = "File Explorer" },
+        { "<leader>m", desc = "Make/Build" },
+        { "<leader>t", desc = "Test" },
+        { "<leader>q", desc = "Quickfix" },
+      },
+    },
+  },
+
   -- LSP Configuration
   {
     "neovim/nvim-lspconfig",
