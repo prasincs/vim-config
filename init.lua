@@ -225,14 +225,17 @@ require("lazy").setup({
         local buf = vim.api.nvim_create_buf(false, true)
         vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
         vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
-        vim.api.nvim_buf_set_name(buf, "tutor://keymaps")
+        vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
+        vim.api.nvim_buf_set_name(buf, "[Tutor]")
 
-        -- Open in split
+        -- Open tutor in left split, Claude on right
         vim.cmd("vsplit")
         vim.api.nvim_win_set_buf(0, buf)
+        vim.cmd("wincmd H")  -- Move to far left
+        vim.cmd("vertical resize 50")
 
-        -- Add to Claude and open chat
-        vim.cmd("ClaudeCodeAdd tutor://keymaps")
+        -- Open Claude in the other window
+        vim.cmd("wincmd l")
         vim.cmd("ClaudeCode")
       end, { desc = "Open AI-powered Neovim tutor" })
 
